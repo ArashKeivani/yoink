@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Yoink
+GenericName=Drag and Drop Shelf
+Comment=Keep files, text and links within reach
+Exec=yoink
+Icon=org.yoink.Yoink
+Terminal=false
+Categories=Utility;
+Keywords=shelf;drag;drop;clipboard;files;
+StartupNotify=false
+X-GNOME-Autostart-enabled=true

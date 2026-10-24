@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.yoink.Yoink</id>
+  <name>Yoink</name>
+  <summary>A drag and drop shelf at the edge of your screen</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <developer id="org.yoink">
+    <name>Yoink contributors</name>
+  </developer>
+  <description>
+    <p>Yoink is a small, native shelf for the edge of your desktop. Drag files, folders, text, links, and images onto it and they stay within reach until you need them.</p>
+    <p>Items can be dragged out again with normal copy or move semantics. Yoink never deletes or modifies the original content merely because it was collected.</p>
+  </description>
+  <launchable type="desktop-id">org.yoink.Yoink.desktop</launchable>
+  <provides>
+    <binary>yoink</binary>
+  </provides>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-10-24">
+      <description>
+        <p>Initial release.</p>
+      </description>
+    </release>
+  </releases>
+</component>
