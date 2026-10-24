@@ -1,0 +1,174 @@
+# Yoink
+
+Yoink is a small, native drag-and-drop shelf for the edge of a KDE Plasma 6
+Wayland desktop. Drag files, folders, text, links, and images onto the nearly
+invisible edge handle; they stay within reach until you need them again.
+
+Yoink is built with C++20, Qt 6, KDE Frameworks 6, and LayerShellQt. It follows
+the active Plasma color scheme, font, and animation settings rather than
+shipping a fixed theme.
+
+## Features
+
+- Collect files, folders, text, links, and images from native drag-and-drop.
+- Show item names, icons, metadata, and image previews.
+- Reject duplicate items and clearly report unsupported or unavailable content.
+- Drag items back out with normal copy/move semantics. Yoink never deletes or
+  modifies the original content merely because it was collected.
+- Remove individual items, clear the shelf, and undo the last removal.
+- Pin the shelf open, close it without clearing it, and reopen it from the tray
+  or with the command line.
+- Persist the shelf across restarts with atomic writes and corruption recovery.
+- Choose the screen edge, vertical/horizontal position, and monitor.
+- Optional start-at-login entry, single-instance behavior, and a status notifier
+  tray icon.
+- Keyboard-accessible controls, visible focus rings, and support for Plasma's
+  reduced-motion animation factor.
+- Inline settings and context menus, so no Wayland popup surfaces are required.
+
+## Requirements
+
+Yoink targets **KDE Plasma 6 on Wayland** and uses the `wlr-layer-shell` protocol.
+KWin provides this protocol. On a non-Wayland session Yoink falls back to a
+regular always-on-top window, but edge positioning, input masking, and some
+focus behavior are not guaranteed there.
+
+Build requirements:
+
+- CMake 3.22 or newer
+- C++20 compiler
+- Qt 6.6 or newer: Core, Gui, Widgets, Qml, Quick, QuickControls2, Svg
+- KDE Frameworks 6: Config, ColorScheme, StatusNotifierItem
+- LayerShellQt
+
+Typical package names on Arch Linux:
+
+```sh
+sudo pacman -S --needed base-devel cmake ninja qt6-base qt6-declarative qt6-svg \
+  kf6-config kf6-colorscheme kf6-statusnotifieritem layer-shell-qt
+```
+
+On Debian/Ubuntu-style systems the development packages are usually named
+`qt6-base-dev`, `qt6-declarative-dev`, `qt6-svg-dev`, `libkf6config-dev`,
+`libkf6colorscheme-dev`, `libkf6statusnotifieritem-dev`, and
+`liblayershellqtinterface-dev`.
+
+## Build
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+Run the development build:
+
+```sh
+./build/yoink
+```
+
+Install into a prefix:
+
+```sh
+cmake --install build --prefix "$HOME/.local"
+```
+
+Make sure the install prefix's `bin` directory is on `PATH` before using the
+desktop entry or enabling autostart.
+
+## Usage
+
+- Hover the thin handle at the configured screen edge to open the shelf.
+- Click the handle to keep it open until you close it.
+- Drop content onto the shelf. Supported content is collected immediately.
+- Drag an item out to copy it (or move it, for local files/folders, when the
+  target supports move). The original item is left untouched by Yoink.
+- Click an item to open it. Text items are copied to the clipboard.
+- Right-click an item for open/copy/show-in-folder/remove actions.
+- Use the header buttons to pin the shelf open, open settings, or close it.
+- Use the tray icon to show/hide Yoink or open settings.
+- Press `Escape` to close an overlay or the shelf. Press `Ctrl+,` while the shelf
+  is open to open settings.
+
+### Command line
+
+```text
+yoink              Start Yoink and show the shelf
+yoink --show       Show the shelf in a running instance
+yoink --toggle     Toggle the shelf in a running instance
+yoink --settings   Open settings in a running instance
+yoink --quit       Quit the running instance
+yoink --autostart  Start quietly, as at login
+```
+
+Only one Yoink instance runs at a time. Additional invocations forward their
+request to the existing instance over a local socket.
+
+## Data and settings
+
+The exact paths are shown in **Settings → Storage**.
+
+- Shelf data: Qt's application data location, typically
+  `~/.local/share/Yoink/Yoink/items.json`
+- Copied image data: `~/.local/share/Yoink/Yoink/images/`
+- Settings: `~/.config/Yoinkrc`
+- Autostart entry: `~/.config/autostart/org.yoink.Yoink.desktop`
+
+Shelf writes use `QSaveFile`, so a failed write does not replace the previous
+good file. Corrupt or unknown-format data is backed up next to the original and
+reported in the UI. A data file from a newer schema is treated as read-only.
+
+File and folder items are references, not copies. If an original is moved or
+deleted, Yoink marks the item unavailable and refuses to open or drag it. Raw
+image data received through the image MIME type is stored as a PNG inside
+Yoink's data directory; image files dropped as file URLs remain references.
+
+## Limits
+
+- Maximum 60 items.
+- Maximum text item: 256 KiB (UTF-8).
+- Maximum raw image: 20 megapixels and 6 MiB encoded PNG.
+- The shelf surface has a fixed maximum size of roughly 356 × 456 logical
+  pixels and is clamped to the available screen area.
+- No cloud sync, history, tags, or search.
+
+## Wayland and drag-and-drop limitations
+
+Native drag-and-drop is ultimately controlled by the source application and the
+compositor. Yoink cannot recover data that an application never exposes.
+
+- Some applications offer only plain text for a drag that visually looks like a
+  file or image. Yoink collects what the source actually provides.
+- Some applications do not publish local file URLs, or use private MIME types.
+  Those drops are rejected with an explanatory message.
+- Dragging out of a layer-shell surface is supported through Qt's native drag
+  implementation, but the target application decides whether it accepts copy,
+  move, image, or URL data.
+- There is no portable Wayland mechanism for a background application to inject
+  synthetic pointer drags. Automated drag-and-drop tests are therefore not
+  included; the manual test matrix is in [`docs/TESTING.md`](docs/TESTING.md).
+- Global keyboard shortcuts are not registered. Yoink's shortcuts work while
+  its surface has keyboard focus.
+- Monitor hot-plug and panel changes are handled by re-computing the layer
+  surface layout. If the configured monitor disappears, Yoink falls back to the
+  primary screen.
+
+## Development
+
+The code is organized into:
+
+```text
+src/core/   Shelf model, MIME import, persistence, settings, theme, placement
+src/app/    Single instance, autostart, tray integration
+src/ui/     Layer-shell window, drop surface, controller, image provider
+src/qml/    Shelf, settings, menus, and reusable controls
+data/       Desktop entry, AppStream metadata, icons
+```
+
+Formatting follows the KDE Frameworks style configured in `.clang-format`.
+There is no automated test suite yet; correctness is currently verified with the
+manual matrix and a clean build.
+
+## License
+
+Yoink is licensed under the GNU General Public License, version 2 or later.
+See [`LICENSE`](LICENSE).
