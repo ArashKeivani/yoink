@@ -19,6 +19,7 @@ class DropSurface : public QQuickItem
 
 public:
     explicit DropSurface(QQuickItem *parent = nullptr);
+    void setInternalDragActive(bool active);
 
 Q_SIGNALS:
     void externalDragEntered(const QString &summary, int count);
@@ -33,4 +34,5 @@ protected:
 
 private:
     bool m_dragAccepted = false;
+    bool m_internalDragActive = false;
 };

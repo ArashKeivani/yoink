@@ -124,7 +124,11 @@ int main(int argc, char *argv[])
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &controller, &ShelfController::shutdown);
 
     controller.start(autostart);
-    if (parser.isSet(settingsOption)) {
+    if (parser.isSet(showOption)) {
+        controller.showFromUser();
+    } else if (parser.isSet(toggleOption)) {
+        controller.toggleFromTray();
+    } else if (parser.isSet(settingsOption)) {
         controller.openSettings();
     }
 

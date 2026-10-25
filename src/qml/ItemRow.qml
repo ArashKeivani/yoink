@@ -19,7 +19,7 @@ Item {
     property bool itemHasPreview: false
     property string itemKindName: "file"
     property bool hovered: false
-
+    property bool selected: shelf.selectedRows.indexOf(root.itemIndex) >= 0
     readonly property var theme: shelf.theme
 
     width: ListView.view ? ListView.view.width : 0
@@ -33,11 +33,16 @@ Item {
 
     Keys.onReturnPressed: shelf.activateItem(root.itemIndex)
     Keys.onEnterPressed: shelf.activateItem(root.itemIndex)
-    Keys.onSpacePressed: shelf.activateItem(root.itemIndex)
     Keys.onDeletePressed: shelf.removeItem(root.itemIndex)
     Keys.onPressed: function (event) {
         if (event.key === Qt.Key_Menu) {
             shelf.openItemMenu(root.itemIndex);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ControlModifier)) {
+            shelf.toggleItemSelection(root.itemIndex);
+            event.accepted = true;
+        } else if (event.key === Qt.Key_Space && (event.modifiers & Qt.ShiftModifier)) {
+            shelf.extendItemSelection(root.itemIndex);
             event.accepted = true;
         }
     }
@@ -45,13 +50,16 @@ Item {
     Rectangle {
         anchors.fill: parent
         radius: 10
-        color: root.hovered || root.activeFocus ? root.theme.hover : "transparent"
-        border.width: root.activeFocus ? 1 : 0
+        color: root.selected
+            ? root.theme.accentSoft
+            : root.hovered || root.selected || root.activeFocus
+              ? root.theme.hover
+              : "transparent"
+        border.width: root.selected || root.activeFocus ? 1 : 0
         border.color: root.theme.accent
+
         Behavior on color {
-            ColorAnimation {
-                duration: root.theme.duration(110)
-            }
+            ColorAnimation { duration: root.theme.duration(110) }
         }
     }
 
@@ -160,7 +168,11 @@ Item {
             }
             if (Math.abs(mouse.x - pressX) > 6 || Math.abs(mouse.y - pressY) > 6) {
                 dragStarted = true;
-                shelf.startItemDrag(root.itemIndex);
+                if (root.selected && shelf.selectedCount > 1) {
+                    shelf.startItemsDrag(shelf.selectedRows);
+                } else {
+                    shelf.startItemDrag(root.itemIndex);
+                }
             }
         }
         onClicked: function (mouse) {
@@ -170,9 +182,17 @@ Item {
             }
             if (mouse.button === Qt.RightButton) {
                 shelf.openItemMenu(root.itemIndex);
-            } else {
-                shelf.activateItem(root.itemIndex);
+                return;
             }
+            if (mouse.modifiers & Qt.ControlModifier) {
+                shelf.toggleItemSelection(root.itemIndex);
+                return;
+            }
+            if (mouse.modifiers & Qt.ShiftModifier) {
+                shelf.extendItemSelection(root.itemIndex);
+                return;
+            }
+            shelf.activateItem(root.itemIndex);
         }
         onPressAndHold: shelf.openItemMenu(root.itemIndex)
     }

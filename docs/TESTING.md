@@ -12,7 +12,8 @@ Storage**.
 ## Build and startup
 
 - [ ] Configure and build from a clean directory with no warnings.
-- [ ] Launch with no arguments: the shelf opens on the configured edge.
+- [ ] Launch with no arguments: the shelf starts collapsed on the configured edge.
+- [ ] Launch with `--show`: the shelf opens.
 - [ ] Launch with `--autostart`: the shelf starts collapsed and quiet.
 - [ ] Launch a second instance with `--show`: the existing instance opens and
       the second process exits successfully.
@@ -82,6 +83,16 @@ Storage**.
 - [ ] Drag a file out and drop it on a target that accepts moves; the target's
       move is honored and Yoink's reference remains.
 - [ ] Drag text, a URL, and an image out; each target receives the expected data.
+- [ ] Ctrl+click several items; they show the selection highlight.
+- [ ] Shift+click extends the selection between two items.
+- [ ] Ctrl+A selects all items; Escape clears the selection.
+- [ ] Drag a selected item out and drop on a folder: all selected files arrive
+      as one drop; text and URL selections arrive as text.
+- [ ] Drag an unselected item while others are selected: only that item moves.
+- [ ] If part of a selection is unavailable, the unavailable ones are skipped
+      and a toast reports how many were skipped; a single unavailable item
+      explains itself instead of starting a drag.
+- [ ] Ctrl+Space toggles and Shift+Space extends the selection from the keyboard.
 - [ ] Cancel a drag-out by pressing Escape or dropping outside a target; Yoink
       remains open and the item is not lost.
 - [ ] Attempt to drag/open a missing file; an error is shown and nothing is
@@ -90,7 +101,10 @@ Storage**.
 ## Settings and tray
 
 - [ ] Open settings with the header button, the tray, and `Ctrl+,`.
-- [ ] Change edge and position; the shelf moves immediately.
+- [ ] Change edge and position while watching the shelf: the surface stays at
+      the edge and the card slides smoothly within it, without jumping.
+- [ ] The expanded card has the same small margin from the active edge on
+      left, right, top, and bottom; the handle is flush on all four sides.
 - [ ] Change monitor; the shelf moves immediately.
 - [ ] Toggle Start at Login; the autostart file is created/removed and the
       setting survives a restart.

@@ -24,6 +24,13 @@ DropSurface {
     }
 
     Shortcut {
+        sequence: "Ctrl+A"
+        context: Qt.WindowShortcut
+        enabled: shelf.expanded && shelf.itemCount > 0
+        onActivated: shelf.selectAllItems()
+    }
+
+    Shortcut {
         sequence: "Ctrl+,"
         context: Qt.WindowShortcut
         enabled: shelf.expanded

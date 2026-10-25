@@ -4,7 +4,7 @@
 */
 
 #include "ShelfPlacement.h"
-
+#include <QMargins>
 #include <algorithm>
 
 namespace
@@ -17,84 +17,88 @@ constexpr int HandleThickness = 8;
 constexpr int HandleInputLength = 120;
 constexpr int HandleInputThickness = 24;
 
-QRect centeredVerticalHandle(const QSize &stageSize, bool rightSide)
+static int clampInt(int value, int minimum, int maximum)
 {
-    const int length = std::min(HandleLength, stageSize.height());
-    const int x = rightSide ? stageSize.width() - HandleThickness : 0;
-    return QRect(x, (stageSize.height() - length) / 2, HandleThickness, length);
-}
-
-QRect centeredHorizontalHandle(const QSize &stageSize, bool bottomSide)
-{
-    const int length = std::min(HandleLength, stageSize.width());
-    const int y = bottomSide ? stageSize.height() - HandleThickness : 0;
-    return QRect((stageSize.width() - length) / 2, y, length, HandleThickness);
-}
-
-QRect verticalHitArea(const QSize &stageSize, bool rightSide)
-{
-    const int width = std::min(HandleInputThickness, stageSize.width());
-    const int height = std::min(HandleInputLength, stageSize.height());
-    const int x = rightSide ? stageSize.width() - width : 0;
-    return QRect(x, (stageSize.height() - height) / 2, width, height);
-}
-
-QRect horizontalHitArea(const QSize &stageSize, bool bottomSide)
-{
-    const int width = std::min(HandleInputLength, stageSize.width());
-    const int height = std::min(HandleInputThickness, stageSize.height());
-    const int y = bottomSide ? stageSize.height() - height : 0;
-    return QRect((stageSize.width() - width) / 2, y, width, height);
+    return std::clamp(value, minimum, std::max(minimum, maximum));
 }
 } // namespace
 
 ShelfGeometry::Layout ShelfGeometry::computeLayout(const QRect &screenGeometry, const QRect &availableGeometry, Edge edge, int positionPercent)
 {
     const QRect available = availableGeometry.isValid() ? availableGeometry : screenGeometry;
-    const int percent = std::clamp(positionPercent, 0, 100);
+    const int percent = clampInt(positionPercent, 0, 100);
 
     Layout layout;
     layout.edge = edge;
     layout.verticalEdge = edge == Edge::Left || edge == Edge::Right;
-    layout.stageSize = QSize(std::min(StageWidth, std::max(1, available.width())), std::min(StageHeight, std::max(1, available.height())));
-    layout.cardSize = QSize(std::max(1, layout.stageSize.width() - 2 * CardMargin), std::max(1, layout.stageSize.height() - 2 * CardMargin));
-    layout.cardRect = QRect(CardMargin, CardMargin, layout.cardSize.width(), layout.cardSize.height());
 
-    int x = available.left();
-    int y = available.top();
+    // The stage spans the whole edge so position changes never move the layer surface.
     if (layout.verticalEdge) {
-        y += qRound((available.height() - layout.stageSize.height()) * (percent / 100.0));
+        layout.stageSize = QSize(StageWidth, available.height());
     } else {
-        x += qRound((available.width() - layout.stageSize.width()) * (percent / 100.0));
+        layout.stageSize = QSize(available.width(), StageHeight);
     }
+    layout.cardSize = QSize(std::max(1, std::min(StageWidth, layout.stageSize.width()) - 2 * CardMargin),
+                            std::max(1, std::min(StageHeight, layout.stageSize.height()) - 2 * CardMargin));
 
+    const int edgeAxis = layout.verticalEdge ? layout.stageSize.height() : layout.stageSize.width();
+    const int cardAxis = layout.verticalEdge ? layout.cardSize.height() : layout.cardSize.width();
+    const int axisMax = std::max(0, edgeAxis - cardAxis - 2 * CardMargin);
+    const int alongAxis = CardMargin + qRound(axisMax * (percent / 100.0));
+
+    int x = 0;
+    int y = 0;
+    switch (edge) {
+    case Edge::Left:
+        x = CardMargin;
+        y = alongAxis;
+        break;
+    case Edge::Right:
+        x = layout.stageSize.width() - layout.cardSize.width() - CardMargin;
+        y = alongAxis;
+        break;
+    case Edge::Top:
+        x = alongAxis;
+        y = CardMargin;
+        break;
+    case Edge::Bottom:
+        x = alongAxis;
+        y = layout.stageSize.height() - layout.cardSize.height() - CardMargin;
+        break;
+    }
+    x = clampInt(x, CardMargin, layout.stageSize.width() - layout.cardSize.width() - CardMargin);
+    y = clampInt(y, CardMargin, layout.stageSize.height() - layout.cardSize.height() - CardMargin);
+    layout.cardRect = QRect(x, y, layout.cardSize.width(), layout.cardSize.height());
+
+    // Margins are measured from the screen edge, so panel offsets keep the strip in the usable area.
     const int panelLeft = available.left() - screenGeometry.left();
     const int panelTop = available.top() - screenGeometry.top();
     const int panelRight = screenGeometry.right() - available.right();
     const int panelBottom = screenGeometry.bottom() - available.bottom();
+    layout.margins = QMargins(panelLeft, panelTop, panelRight, panelBottom);
 
-    switch (edge) {
-    case Edge::Left:
-        layout.margins = QMargins(panelLeft, y - screenGeometry.top(), 0, 0);
-        layout.handleRect = centeredVerticalHandle(layout.stageSize, false);
-        layout.handleHitRect = verticalHitArea(layout.stageSize, false);
-        break;
-    case Edge::Right:
-        layout.margins = QMargins(0, y - screenGeometry.top(), panelRight, 0);
-        layout.handleRect = centeredVerticalHandle(layout.stageSize, true);
-        layout.handleHitRect = verticalHitArea(layout.stageSize, true);
-        break;
-    case Edge::Top:
-        layout.margins = QMargins(x - screenGeometry.left(), panelTop, 0, 0);
-        layout.handleRect = centeredHorizontalHandle(layout.stageSize, false);
-        layout.handleHitRect = horizontalHitArea(layout.stageSize, false);
-        break;
-    case Edge::Bottom:
-        layout.margins = QMargins(x - screenGeometry.left(), 0, 0, panelBottom);
-        layout.handleRect = centeredHorizontalHandle(layout.stageSize, true);
-        layout.handleHitRect = horizontalHitArea(layout.stageSize, true);
-        break;
+    if (layout.verticalEdge) {
+        const int handleY = layout.cardRect.y() + (layout.cardSize.height() - HandleLength) / 2;
+        const int handleX = edge == Edge::Right ? layout.stageSize.width() - HandleThickness : 0;
+        const int clampedY = clampInt(handleY, 0, layout.stageSize.height() - HandleLength);
+        layout.handleRect = QRect(handleX, clampedY, HandleThickness, HandleLength);
+        const int hitHeight = std::min(HandleInputLength, layout.stageSize.height());
+        const int hitWidth = std::min(HandleInputThickness, layout.stageSize.width());
+        const int hitX = edge == Edge::Right ? layout.stageSize.width() - hitWidth : 0;
+        const int hitY = clampInt(handleY, 0, layout.stageSize.height() - hitHeight);
+        layout.handleHitRect = QRect(hitX, hitY, hitWidth, hitHeight);
+    } else {
+        const int handleY = edge == Edge::Bottom ? layout.stageSize.height() - HandleThickness : 0;
+        const int handleX = layout.cardRect.x() + (layout.cardSize.width() - HandleLength) / 2;
+        const int clampedX = clampInt(handleX, 0, layout.stageSize.width() - HandleLength);
+        layout.handleRect = QRect(clampedX, handleY, HandleLength, HandleThickness);
+        const int hitWidth = std::min(HandleInputLength, layout.stageSize.width());
+        const int hitHeight = std::min(HandleInputThickness, layout.stageSize.height());
+        const int hitY = edge == Edge::Bottom ? layout.stageSize.height() - hitHeight : 0;
+        const int hitX = clampInt(handleX, 0, layout.stageSize.width() - hitWidth);
+        layout.handleHitRect = QRect(hitX, hitY, hitWidth, hitHeight);
     }
+
     return layout;
 }
 
@@ -105,5 +109,5 @@ QRegion ShelfGeometry::collapsedInputRegion(const Layout &layout)
 
 QRegion ShelfGeometry::expandedInputRegion(const Layout &layout)
 {
-    return QRegion(QRect(QPoint(0, 0), layout.stageSize));
+    return QRegion(layout.cardRect.united(layout.handleRect));
 }

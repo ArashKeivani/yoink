@@ -30,6 +30,7 @@
 #include <QScreen>
 #include <QUrl>
 
+#include <algorithm>
 #include <utility>
 
 namespace
@@ -102,6 +103,11 @@ ShelfController::ShelfController(ShelfSurface *view, QObject *parent)
 
     connect(m_model, &ShelfModel::contentsChanged, this, &ShelfController::onModelContentsChanged);
     connect(m_model, &ShelfModel::countChanged, this, &ShelfController::onModelCountChanged);
+    connect(m_model, &ShelfModel::countChanged, this, [this] {
+        if (m_model->count() <= 0) {
+            clearSelection();
+        }
+    });
 
     connect(m_settings, &AppSettings::pinnedChanged, this, &ShelfController::onSettingsPinnedChanged);
     connect(m_settings, &AppSettings::edgeChanged, this, &ShelfController::onSettingsEdgeChanged);
@@ -129,6 +135,7 @@ ShelfController::~ShelfController() = default;
 
 void ShelfController::start(bool quiet)
 {
+    Q_UNUSED(quiet);
     if (!m_view) {
         return;
     }
@@ -139,7 +146,7 @@ void ShelfController::start(bool quiet)
     m_view->show();
     m_view->setInputExpanded(false);
 
-    if (!quiet || m_settings->pinned()) {
+    if (m_settings->pinned()) {
         openShelf();
     }
 }
@@ -387,7 +394,7 @@ ShelfItem ShelfController::itemAt(int index) const
     return m_model->items().at(index);
 }
 
-QPixmap ShelfController::createDragPixmap(const ShelfItem &item) const
+QPixmap ShelfController::createDragPixmap(const ShelfItem &item, int count) const
 {
     const qreal dpr = m_view ? m_view->devicePixelRatio() : 1.0;
     const QSize logicalSize(240, 64);
@@ -404,7 +411,7 @@ QPixmap ShelfController::createDragPixmap(const ShelfItem &item) const
 
     QIcon icon = iconForItem(item);
     if (icon.isNull()) {
-        icon = QIcon::fromTheme(QStringLiteral("text-x-generic"));
+        icon = QIcon::fromTheme(QStringLiteral("document-multiple"));
     }
     const QPixmap iconPixmap = icon.pixmap(QSize(36, 36), dpr);
     if (!iconPixmap.isNull()) {
@@ -419,12 +426,18 @@ QPixmap ShelfController::createDragPixmap(const ShelfItem &item) const
 
     painter.setFont(nameFont);
     painter.setPen(m_theme->text());
-    const QString name = QFontMetricsF(nameFont).elidedText(item.displayName(), Qt::ElideMiddle, 164);
+    QString name = QFontMetricsF(nameFont).elidedText(item.displayName(), Qt::ElideMiddle, 164);
+    if (count > 1) {
+        name = QFontMetricsF(nameFont).elidedText(tr("%1 and %2 more").arg(item.displayName()).arg(count - 1), Qt::ElideMiddle, 164);
+    }
     painter.drawText(QRectF(62, 11, 166, 21), Qt::AlignLeft | Qt::AlignVCenter, name);
 
     painter.setFont(detailFont);
     painter.setPen(m_theme->textMuted());
-    const QString detail = QFontMetricsF(detailFont).elidedText(item.secondaryText(), Qt::ElideMiddle, 166);
+    QString detail = QFontMetricsF(detailFont).elidedText(item.secondaryText(), Qt::ElideMiddle, 166);
+    if (count > 1) {
+        detail = QFontMetricsF(detailFont).elidedText(tr("%n item(s) selected", nullptr, count), Qt::ElideMiddle, 166);
+    }
     painter.drawText(QRectF(62, 33, 166, 19), Qt::AlignLeft | Qt::AlignVCenter, detail);
     painter.end();
     return pixmap;
@@ -500,13 +513,14 @@ void ShelfController::onMimeDropped(const QMimeData *mimeData)
         message = message.isEmpty() ? result.error : message + QStringLiteral(" — ") + result.error;
     }
     if (!message.isEmpty() && !m_lastSaveFailed) {
-        showToast(message, false, result.added == 0 && !result.error.isEmpty(), result.added == 0 ? 7000 : 5000);
+        showToast(message, false, result.added == 0 && !result.error.isEmpty(), result.added == 0 ? 2500 : 4000);
     }
     scheduleAutoHide();
 }
 
 void ShelfController::onModelContentsChanged()
 {
+    clearSelection();
     m_dirty = true;
     persist();
 }
@@ -701,6 +715,11 @@ QRectF ShelfController::handleHitRect() const
     return QRectF(m_layout.handleHitRect);
 }
 
+QRectF ShelfController::cardRect() const
+{
+    return QRectF(m_layout.cardRect);
+}
+
 bool ShelfController::verticalEdge() const
 {
     return m_layout.verticalEdge;
@@ -830,6 +849,10 @@ void ShelfController::handleEscape()
         closeItemMenu();
         return;
     }
+    if (m_selectedRows.size() > 0) {
+        clearSelection();
+        return;
+    }
     if (m_expanded) {
         closeShelf();
     }
@@ -883,63 +906,191 @@ void ShelfController::activateItem(int index)
 
 void ShelfController::startItemDrag(int index)
 {
-    if (m_internalDragActive || !m_view) {
+    if (index >= 0 && m_model && index < m_model->count()) {
+        startItemsDrag(QList<int>{index});
+    }
+}
+
+void ShelfController::startItemsDrag(const QList<int> &indices)
+{
+    if (indices.isEmpty() || m_internalDragActive || !m_view || !m_model) {
         return;
     }
 
     m_model->refreshAvailability();
-    const ShelfItem item = itemAt(index);
-    if (item.id.isEmpty()) {
-        return;
+    QList<ShelfItem> items;
+    items.reserve(indices.size());
+    int skippedUnavailable = 0;
+    for (int index : indices) {
+        ShelfItem item = itemAt(index);
+        if (item.id.isEmpty()) {
+            continue;
+        }
+        if ((item.kind == ShelfItem::Kind::File || item.kind == ShelfItem::Kind::Folder || item.kind == ShelfItem::Kind::Image) && !item.available) {
+            if (indices.size() == 1) {
+                showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true, 6000);
+                return;
+            }
+            ++skippedUnavailable;
+            continue;
+        }
+        items.append(item);
     }
-    if ((item.kind == ShelfItem::Kind::File || item.kind == ShelfItem::Kind::Folder || item.kind == ShelfItem::Kind::Image) && !item.available) {
-        showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true, 6000);
+    if (items.isEmpty()) {
+        showToast(tr("Nothing to drag."), false, false, 2500);
         return;
     }
 
     auto mimeData = std::make_unique<QMimeData>();
     Qt::DropActions actions = Qt::CopyAction;
-    switch (item.kind) {
-    case ShelfItem::Kind::File:
-    case ShelfItem::Kind::Folder:
-        mimeData->setUrls({QUrl::fromLocalFile(item.path)});
-        actions |= Qt::MoveAction;
-        break;
-    case ShelfItem::Kind::Text:
-        mimeData->setText(item.text);
-        break;
-    case ShelfItem::Kind::Url:
-        mimeData->setUrls({QUrl(item.url)});
-        mimeData->setText(item.url);
-        break;
-    case ShelfItem::Kind::Image: {
-        const QImage image(item.imageFile);
-        if (image.isNull()) {
-            showToast(tr("The image could not be read."), false, true, 6000);
-            return;
+    QList<QUrl> urls;
+    QStringList textParts;
+    for (const ShelfItem &item : items) {
+        switch (item.kind) {
+        case ShelfItem::Kind::File:
+        case ShelfItem::Kind::Folder:
+            urls.append(QUrl::fromLocalFile(item.path));
+            actions |= Qt::MoveAction;
+            break;
+        case ShelfItem::Kind::Image:
+            urls.append(QUrl::fromLocalFile(item.imageFile));
+            actions |= Qt::MoveAction;
+            break;
+        case ShelfItem::Kind::Url:
+            urls.append(QUrl(item.url));
+            textParts.append(item.url);
+            break;
+        case ShelfItem::Kind::Text:
+            textParts.append(item.text);
+            break;
         }
-        mimeData->setImageData(image);
-        mimeData->setUrls({QUrl::fromLocalFile(item.imageFile)});
-        break;
     }
+
+    if (!urls.isEmpty()) {
+        mimeData->setUrls(urls);
+    }
+    if (!textParts.isEmpty()) {
+        mimeData->setText(textParts.join(QStringLiteral("\n")));
+    }
+    if (items.count() == 1 && items.first().kind == ShelfItem::Kind::Image) {
+        const QImage image(items.first().imageFile);
+        if (!image.isNull()) {
+            mimeData->setImageData(image);
+        }
+    }
+    if (mimeData->urls().isEmpty() && mimeData->text().isEmpty()) {
+        showToast(tr("There is nothing to drag."), false, false, 2500);
+        return;
+    }
+    if (skippedUnavailable > 0) {
+        showToast(tr("Skipped %n unavailable item(s)", nullptr, skippedUnavailable), false, false, 2500);
     }
 
     m_internalDragActive = true;
     m_closeTimer.stop();
+    if (m_dropSurface) {
+        m_dropSurface->setInternalDragActive(true);
+    }
     m_view->setInputExpanded(true);
     Q_EMIT internalDragChanged();
 
     QDrag drag(m_view);
     drag.setMimeData(mimeData.release());
-    const QPixmap pixmap = createDragPixmap(item);
+    const QPixmap pixmap = createDragPixmap(items.first(), items.size());
     drag.setPixmap(pixmap);
     drag.setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
     drag.exec(actions, Qt::CopyAction);
 
     m_internalDragActive = false;
+    if (m_dropSurface) {
+        m_dropSurface->setInternalDragActive(false);
+    }
     m_model->refreshAvailability();
     Q_EMIT internalDragChanged();
     scheduleAutoHide();
+}
+
+void ShelfController::toggleItemSelection(int index)
+{
+    const int itemCount = m_model ? m_model->count() : 0;
+    if (index < 0 || index >= itemCount) {
+        return;
+    }
+    if (m_selectedRows.contains(index)) {
+        m_selectedRows.remove(index);
+        if (m_selectionAnchor == index) {
+            m_selectionAnchor = -1;
+        }
+    } else {
+        m_selectedRows.insert(index);
+        if (m_selectionAnchor < 0) {
+            m_selectionAnchor = index;
+        }
+    }
+    Q_EMIT selectedRowsChanged();
+}
+
+void ShelfController::extendItemSelection(int index)
+{
+    const int itemCount = m_model ? m_model->count() : 0;
+    if (index < 0 || index >= itemCount) {
+        return;
+    }
+
+    if (m_selectionAnchor < 0) {
+        m_selectionAnchor = index;
+        m_selectedRows.clear();
+        m_selectedRows.insert(index);
+    } else {
+        const int first = qMin(m_selectionAnchor, index);
+        const int last = qMax(m_selectionAnchor, index);
+        m_selectedRows.clear();
+        for (int row = first; row <= last; ++row) {
+            m_selectedRows.insert(row);
+        }
+    }
+    Q_EMIT selectedRowsChanged();
+}
+
+void ShelfController::clearSelection()
+{
+    if (m_selectedRows.isEmpty() && m_selectionAnchor < 0) {
+        return;
+    }
+    m_selectedRows.clear();
+    m_selectionAnchor = -1;
+    Q_EMIT selectedRowsChanged();
+}
+
+void ShelfController::selectAllItems()
+{
+    const int itemCount = m_model ? m_model->count() : 0;
+    if (itemCount <= 0) {
+        return;
+    }
+    m_selectedRows.clear();
+    for (int row = 0; row < itemCount; ++row) {
+        m_selectedRows.insert(row);
+    }
+    m_selectionAnchor = 0;
+    Q_EMIT selectedRowsChanged();
+}
+
+QVariantList ShelfController::selectedRows() const
+{
+    QList<int> rows = m_selectedRows.values();
+    std::sort(rows.begin(), rows.end());
+    QVariantList list;
+    list.reserve(rows.size());
+    for (int row : rows) {
+        list.append(QVariant::fromValue(row));
+    }
+    return list;
+}
+
+int ShelfController::selectedCount() const
+{
+    return int(m_selectedRows.size());
 }
 
 void ShelfController::removeItem(int index)
@@ -982,7 +1133,7 @@ void ShelfController::clearShelf()
 
     m_model->clear();
     if (!m_lastSaveFailed) {
-        showToast(tr("Cleared %n item(s)", nullptr, int(items.size())), true, false, 7000);
+        showToast(tr("Cleared %n item(s)", nullptr, int(items.size())), true, false, 3000);
     }
 }
 

@@ -20,8 +20,17 @@ DropSurface::DropSurface(QQuickItem *parent)
     setAcceptedMouseButtons(Qt::NoButton);
 }
 
+void DropSurface::setInternalDragActive(bool active)
+{
+    m_internalDragActive = active;
+}
+
 void DropSurface::dragEnterEvent(QDragEnterEvent *event)
 {
+    if (m_internalDragActive) {
+        event->ignore();
+        return;
+    }
     const MimeImport::Plan plan = MimeImport::plan(event->mimeData());
     m_dragAccepted = plan.isSupported();
     if (!m_dragAccepted) {
@@ -36,7 +45,7 @@ void DropSurface::dragEnterEvent(QDragEnterEvent *event)
 
 void DropSurface::dragMoveEvent(QDragMoveEvent *event)
 {
-    if (!m_dragAccepted) {
+    if (m_internalDragActive || !m_dragAccepted) {
         event->ignore();
         return;
     }
@@ -56,6 +65,10 @@ void DropSurface::dragLeaveEvent(QDragLeaveEvent *event)
 
 void DropSurface::dropEvent(QDropEvent *event)
 {
+    if (m_internalDragActive) {
+        event->ignore();
+        return;
+    }
     const MimeImport::Plan plan = MimeImport::plan(event->mimeData());
     m_dragAccepted = false;
     if (!plan.isSupported()) {

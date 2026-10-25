@@ -15,6 +15,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QRectF>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 #include <QVariant>
@@ -66,8 +67,12 @@ class ShelfController : public QObject
     Q_PROPERTY(int cardHeight READ cardHeight NOTIFY layoutChanged)
     Q_PROPERTY(QRectF handleRect READ handleRect NOTIFY layoutChanged)
     Q_PROPERTY(QRectF handleHitRect READ handleHitRect NOTIFY layoutChanged)
+    Q_PROPERTY(QRectF cardRect READ cardRect NOTIFY layoutChanged)
     Q_PROPERTY(bool verticalEdge READ verticalEdge NOTIFY layoutChanged)
     Q_PROPERTY(int edge READ edge NOTIFY layoutChanged)
+
+    Q_PROPERTY(QVariantList selectedRows READ selectedRows NOTIFY selectedRowsChanged)
+    Q_PROPERTY(int selectedCount READ selectedCount NOTIFY selectedRowsChanged)
 
     Q_PROPERTY(QString version READ version CONSTANT)
     Q_PROPERTY(QString storageLocation READ storageLocation CONSTANT)
@@ -111,8 +116,11 @@ public:
     [[nodiscard]] int cardHeight() const;
     [[nodiscard]] QRectF handleRect() const;
     [[nodiscard]] QRectF handleHitRect() const;
+    [[nodiscard]] QRectF cardRect() const;
     [[nodiscard]] bool verticalEdge() const;
     [[nodiscard]] int edge() const;
+    [[nodiscard]] QVariantList selectedRows() const;
+    [[nodiscard]] int selectedCount() const;
 
     [[nodiscard]] QString version() const;
     [[nodiscard]] QString storageLocation() const;
@@ -131,6 +139,11 @@ public:
     Q_INVOKABLE void setPinned(bool pinned);
     Q_INVOKABLE void activateItem(int index);
     Q_INVOKABLE void startItemDrag(int index);
+    Q_INVOKABLE void toggleItemSelection(int index);
+    Q_INVOKABLE void extendItemSelection(int index);
+    Q_INVOKABLE void clearSelection();
+    Q_INVOKABLE void selectAllItems();
+    Q_INVOKABLE void startItemsDrag(const QList<int> &indices);
     Q_INVOKABLE void removeItem(int index);
     Q_INVOKABLE void clearShelf();
     Q_INVOKABLE void undoLastRemoval();
@@ -149,6 +162,7 @@ Q_SIGNALS:
     void internalDragChanged();
     void overlayChanged();
     void toastChanged();
+    void selectedRowsChanged();
     void autostartChanged();
     void screensChanged();
     void itemCountChanged();
@@ -176,7 +190,7 @@ private:
     bool ensureModifiable();
     void invalidateUndo();
     [[nodiscard]] ShelfItem itemAt(int index) const;
-    [[nodiscard]] QPixmap createDragPixmap(const ShelfItem &item) const;
+    [[nodiscard]] QPixmap createDragPixmap(const ShelfItem &item, int count = 1) const;
 
     void onPointerInsideChanged(bool inside);
     void onExternalDragEntered(const QString &summary, int count);
@@ -242,4 +256,7 @@ private:
     ShelfGeometry::Layout m_layout;
 
     UndoEntry m_undo;
+
+    QSet<int> m_selectedRows;
+    int m_selectionAnchor = -1;
 };

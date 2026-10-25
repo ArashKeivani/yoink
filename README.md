@@ -55,25 +55,37 @@ On Debian/Ubuntu-style systems the development packages are usually named
 
 ## Build
 
+Debug build:
+
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
+cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/dev -j"$(nproc)"
+```
+
+Release build:
+
+```sh
+cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/release -j"$(nproc)"
 ```
 
 Run the development build:
 
 ```sh
-./build/yoink
+./build/dev/yoink
 ```
+
+Reconfiguring an existing build directory picks up the type it was configured
+with; pass `-DCMAKE_BUILD_TYPE=` there to switch it.
 
 Install into a prefix:
 
 ```sh
-cmake --install build --prefix "$HOME/.local"
+cmake --install build/release --prefix "$HOME/.local"
 ```
 
-Make sure the install prefix's `bin` directory is on `PATH` before using the
-desktop entry or enabling autostart.
+When installing desktop file or autostart users, make sure the install prefix's
+`bin` directory is on `PATH` before using the desktop entry.
 
 ## Usage
 
@@ -82,12 +94,20 @@ desktop entry or enabling autostart.
 - Drop content onto the shelf. Supported content is collected immediately.
 - Drag an item out to copy it (or move it, for local files/folders, when the
   target supports move). The original item is left untouched by Yoink.
+- Group-select items with `Ctrl+click` (toggle) and `Shift+click` (extend
+  range); `Ctrl+A` selects all and `Escape` clears the selection. Dragging a
+  selected item drags the whole selection out as one drop; dragging an
+  unselected item drags only that item.
 - Click an item to open it. Text items are copied to the clipboard.
 - Right-click an item for open/copy/show-in-folder/remove actions.
 - Use the header buttons to pin the shelf open, open settings, or close it.
 - Use the tray icon to show/hide Yoink or open settings.
 - Press `Escape` to close an overlay or the shelf. Press `Ctrl+,` while the shelf
   is open to open settings.
+
+Launching Yoink starts with the shelf collapsed (just the edge handle); it only
+opens expanded if it was pinned. `--show`, `--toggle`, and `--settings` open it
+explicitly.
 
 ### Command line
 
@@ -127,9 +147,15 @@ Yoink's data directory; image files dropped as file URLs remain references.
 - Maximum 60 items.
 - Maximum text item: 256 KiB (UTF-8).
 - Maximum raw image: 20 megapixels and 6 MiB encoded PNG.
-- The shelf surface has a fixed maximum size of roughly 356 × 456 logical
-  pixels and is clamped to the available screen area.
+- The shelf card is roughly 336 × 436 logical pixels and clamped to the
+  available screen area.
 - No cloud sync, history, tags, or search.
+
+When launched from a build directory without Yoink installed, Qt logs
+`Failed to register with host portal … App info not found for 'org.yoink.Yoink'`.
+The desktop entry the portal looks up is not in a standard applications
+directory yet, so registration fails; this is harmless. Installing Yoink
+(`cmake --install`) makes it go away.
 
 ## Wayland and drag-and-drop limitations
 
