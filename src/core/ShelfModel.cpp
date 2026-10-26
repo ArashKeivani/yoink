@@ -20,6 +20,7 @@
 #include <QSet>
 #include <QUrl>
 
+#include <algorithm>
 #include <utility>
 
 namespace
@@ -242,6 +243,37 @@ bool ShelfModel::removeRow(int row)
     beginRemoveRows(QModelIndex(), row, row);
     m_items.removeAt(row);
     endRemoveRows();
+    Q_EMIT contentsChanged();
+    Q_EMIT countChanged();
+    return true;
+}
+
+bool ShelfModel::removeItemsAt(QList<int> rows)
+{
+    std::sort(rows.begin(), rows.end());
+    rows.erase(std::remove_if(rows.begin(), rows.end(), [this](int row) { return row < 0 || row >= m_items.size(); }), rows.end());
+    if (rows.isEmpty()) {
+        return false;
+    }
+
+    int alreadyRemoved = 0;
+    int start = 0;
+    while (start < rows.size()) {
+        int end = start;
+        while (end + 1 < rows.size() && rows[end + 1] == rows[end] + 1) {
+            ++end;
+        }
+        const int blockFirst = rows[start] - alreadyRemoved;
+        const int blockLast = rows[end] - alreadyRemoved;
+        beginRemoveRows(QModelIndex(), blockFirst, blockLast);
+        for (int i = end; i >= start; --i) {
+            m_items.removeAt(rows[i] - alreadyRemoved);
+        }
+        endRemoveRows();
+        alreadyRemoved += end - start + 1;
+        start = end + 1;
+    }
+
     Q_EMIT contentsChanged();
     Q_EMIT countChanged();
     return true;

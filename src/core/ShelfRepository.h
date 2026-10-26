@@ -10,6 +10,8 @@
 #include <QList>
 #include <QString>
 
+class QFileInfo;
+
 class ShelfRepository
 {
 public:
@@ -35,6 +37,8 @@ public:
 private:
     QString backupDamagedFile(QString *backupPath);
     void cleanOrphanedImages(const QList<ShelfItem> &items);
+    void migrateLegacyDataDirectory();
+    static bool moveEntryInto(const QFileInfo &entry, const QString &targetDirectory);
 
     QString m_dataDirectory;
     bool m_readOnly = false;

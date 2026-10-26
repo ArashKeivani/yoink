@@ -333,7 +333,7 @@ void ShelfController::showStartupMessage()
     }
 
     m_startupToastShown = true;
-    showToast(message, false, isError, 9000);
+    showToast(message, false, isError);
 }
 
 void ShelfController::showToast(const QString &message, bool undoAvailable, bool isError, int durationMs)
@@ -341,11 +341,16 @@ void ShelfController::showToast(const QString &message, bool undoAvailable, bool
     if (m_shuttingDown) {
         return;
     }
+    int effective = durationMs;
+    if (effective <= 0) {
+        const int setting = m_settings ? m_settings->toastDuration() : 2500;
+        effective = isError ? qMax(setting, 4000) : setting;
+    }
     m_toastMessage = message;
     m_toastUndoAvailable = undoAvailable;
     m_toastIsError = isError;
     m_toastVisible = true;
-    m_toastTimer.start(qMax(1000, durationMs));
+    m_toastTimer.start(qMax(1000, effective));
     Q_EMIT toastChanged();
 }
 
@@ -368,7 +373,7 @@ void ShelfController::persist()
     qWarning() << "Yoink: couldn't save the shelf:" << error;
     if (!m_saveErrorShown) {
         m_saveErrorShown = true;
-        showToast(tr("Couldn't save shelf changes: %1").arg(error), false, true, 8000);
+        showToast(tr("Couldn't save shelf changes: %1").arg(error), false, true);
     }
 }
 
@@ -377,7 +382,7 @@ bool ShelfController::ensureModifiable()
     if (!m_readOnly) {
         return true;
     }
-    showToast(tr("The shelf is read-only because its data was created by a newer version of Yoink."), false, true, 8000);
+    showToast(tr("The shelf is read-only because its data was created by a newer version of Yoink."), false, true);
     return false;
 }
 
@@ -513,7 +518,7 @@ void ShelfController::onMimeDropped(const QMimeData *mimeData)
         message = message.isEmpty() ? result.error : message + QStringLiteral(" — ") + result.error;
     }
     if (!message.isEmpty() && !m_lastSaveFailed) {
-        showToast(message, false, result.added == 0 && !result.error.isEmpty(), result.added == 0 ? 2500 : 4000);
+        showToast(message, false, result.added == 0 && !result.error.isEmpty());
     }
     scheduleAutoHide();
 }
@@ -561,7 +566,7 @@ void ShelfController::onSettingsScreenNameChanged()
 
 void ShelfController::onSettingsSaveFailed(const QString &message)
 {
-    showToast(message, false, true, 7000);
+    showToast(message, false, true);
 }
 
 void ShelfController::onCloseTimeout()
@@ -877,7 +882,7 @@ void ShelfController::activateItem(int index)
     }
 
     if ((item.kind == ShelfItem::Kind::File || item.kind == ShelfItem::Kind::Folder || item.kind == ShelfItem::Kind::Image) && !item.available) {
-        showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true, 6000);
+        showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true);
         return;
     }
 
@@ -900,7 +905,7 @@ void ShelfController::activateItem(int index)
         break;
     }
     if (!target.isValid() || !QDesktopServices::openUrl(target)) {
-        showToast(tr("Couldn't open that item."), false, true, 6000);
+        showToast(tr("Couldn't open that item."), false, true);
     }
 }
 
@@ -928,7 +933,7 @@ void ShelfController::startItemsDrag(const QList<int> &indices)
         }
         if ((item.kind == ShelfItem::Kind::File || item.kind == ShelfItem::Kind::Folder || item.kind == ShelfItem::Kind::Image) && !item.available) {
             if (indices.size() == 1) {
-                showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true, 6000);
+                showToast(item.unavailableReason.isEmpty() ? tr("That item is no longer available.") : item.unavailableReason, false, true);
                 return;
             }
             ++skippedUnavailable;
@@ -937,7 +942,7 @@ void ShelfController::startItemsDrag(const QList<int> &indices)
         items.append(item);
     }
     if (items.isEmpty()) {
-        showToast(tr("Nothing to drag."), false, false, 2500);
+        showToast(tr("Nothing to drag."), false, false);
         return;
     }
 
@@ -979,11 +984,11 @@ void ShelfController::startItemsDrag(const QList<int> &indices)
         }
     }
     if (mimeData->urls().isEmpty() && mimeData->text().isEmpty()) {
-        showToast(tr("There is nothing to drag."), false, false, 2500);
+        showToast(tr("There is nothing to drag."), false, false);
         return;
     }
     if (skippedUnavailable > 0) {
-        showToast(tr("Skipped %n unavailable item(s)", nullptr, skippedUnavailable), false, false, 2500);
+        showToast(tr("Skipped %n unavailable item(s)", nullptr, skippedUnavailable), false, false);
     }
 
     m_internalDragActive = true;
@@ -1027,6 +1032,18 @@ void ShelfController::toggleItemSelection(int index)
             m_selectionAnchor = index;
         }
     }
+    Q_EMIT selectedRowsChanged();
+}
+
+void ShelfController::selectItem(int index)
+{
+    const int itemCount = m_model ? m_model->count() : 0;
+    if (index < 0 || index >= itemCount) {
+        return;
+    }
+    m_selectedRows.clear();
+    m_selectedRows.insert(index);
+    m_selectionAnchor = index;
     Q_EMIT selectedRowsChanged();
 }
 
@@ -1088,6 +1105,27 @@ QVariantList ShelfController::selectedRows() const
     return list;
 }
 
+QList<int> ShelfController::sortedSelectedRows() const
+{
+    QList<int> rows = m_selectedRows.values();
+    std::sort(rows.begin(), rows.end());
+    return rows;
+}
+
+QList<ShelfItem> ShelfController::selectedItems() const
+{
+    QList<ShelfItem> items;
+    const QList<int> rows = sortedSelectedRows();
+    items.reserve(rows.size());
+    for (int row : rows) {
+        const ShelfItem item = itemAt(row);
+        if (!item.id.isEmpty()) {
+            items.append(item);
+        }
+    }
+    return items;
+}
+
 int ShelfController::selectedCount() const
 {
     return int(m_selectedRows.size());
@@ -1111,7 +1149,98 @@ void ShelfController::removeItem(int index)
 
     m_model->removeRow(index);
     if (!m_lastSaveFailed) {
-        showToast(tr("Removed “%1”").arg(m_undo.description), true, false, 6000);
+        showToast(tr("Removed “%1”").arg(m_undo.description), true, false);
+    }
+}
+
+void ShelfController::removeSelectedItems()
+{
+    if (!ensureModifiable()) {
+        return;
+    }
+    const QList<ShelfItem> selected = selectedItems();
+    if (selected.isEmpty()) {
+        return;
+    }
+    const QList<int> rows = sortedSelectedRows();
+    closeItemMenu();
+
+    m_undo.row = rows.first();
+    m_undo.items = selected;
+    m_undo.description = tr("%n item(s)", nullptr, selected.size());
+    m_undo.valid = true;
+
+    m_model->removeItemsAt(rows);
+    if (!m_lastSaveFailed) {
+        showToast(tr("Removed %n item(s)", nullptr, selected.size()), true, false);
+    }
+}
+
+void ShelfController::copySelectedItems()
+{
+    const QList<ShelfItem> selected = selectedItems();
+    if (selected.isEmpty()) {
+        return;
+    }
+
+    QList<QUrl> urls;
+    QStringList texts;
+    int copied = 0;
+    for (const ShelfItem &item : selected) {
+        if ((item.kind == ShelfItem::Kind::File || item.kind == ShelfItem::Kind::Folder || item.kind == ShelfItem::Kind::Image) && !item.available) {
+            continue;
+        }
+        ++copied;
+        switch (item.kind) {
+        case ShelfItem::Kind::File:
+        case ShelfItem::Kind::Folder:
+            urls.append(QUrl::fromLocalFile(item.path));
+            texts.append(item.path);
+            break;
+        case ShelfItem::Kind::Image:
+            urls.append(QUrl::fromLocalFile(item.imageFile));
+            texts.append(item.imageFile);
+            break;
+        case ShelfItem::Kind::Url:
+            urls.append(QUrl(item.url));
+            texts.append(item.url);
+            break;
+        case ShelfItem::Kind::Text:
+            texts.append(item.text);
+            break;
+        }
+    }
+
+    if (urls.isEmpty() && texts.isEmpty()) {
+        showToast(tr("None of the selected items is available."), false, true);
+        return;
+    }
+
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (urls.isEmpty()) {
+        clipboard->setText(texts.join(QLatin1Char('\n')));
+    } else {
+        auto *mimeData = new QMimeData;
+        mimeData->setUrls(urls);
+        mimeData->setText(texts.join(QLatin1Char('\n')));
+        clipboard->setMimeData(mimeData);
+    }
+    showToast(tr("Copied %n item(s) to clipboard.", nullptr, copied), false, false);
+}
+
+void ShelfController::openSelectedItems()
+{
+    const QList<int> rows = sortedSelectedRows();
+    for (int row : rows) {
+        activateItem(row);
+    }
+}
+
+void ShelfController::showSelectedInFolder()
+{
+    const QList<int> rows = sortedSelectedRows();
+    for (int row : rows) {
+        openContainingFolder(row);
     }
 }
 
@@ -1122,7 +1251,7 @@ void ShelfController::clearShelf()
     }
     const QList<ShelfItem> items = m_model->items();
     if (items.isEmpty()) {
-        showToast(tr("The shelf is already empty."), false, false, 3500);
+        showToast(tr("The shelf is already empty."), false, false);
         return;
     }
 
@@ -1133,7 +1262,7 @@ void ShelfController::clearShelf()
 
     m_model->clear();
     if (!m_lastSaveFailed) {
-        showToast(tr("Cleared %n item(s)", nullptr, int(items.size())), true, false, 3000);
+        showToast(tr("Cleared %n item(s)", nullptr, int(items.size())), true, false);
     }
 }
 
@@ -1147,7 +1276,7 @@ void ShelfController::undoLastRemoval()
     m_undo = {};
     m_model->insertItemsAt(entry.row, entry.items);
     if (!m_lastSaveFailed) {
-        showToast(tr("Restored %n item(s)", nullptr, int(entry.items.size())), false, false, 4500);
+        showToast(tr("Restored %n item(s)", nullptr, int(entry.items.size())), false, false);
     }
 }
 
@@ -1165,28 +1294,28 @@ void ShelfController::copyItem(int index)
         auto *mimeData = new QMimeData;
         mimeData->setUrls({QUrl::fromLocalFile(item.path)});
         clipboard->setMimeData(mimeData);
-        showToast(tr("Copied to clipboard."), false, false, 3000);
+        showToast(tr("Copied to clipboard."), false, false);
         break;
     }
     case ShelfItem::Kind::Text:
         clipboard->setText(item.text);
-        showToast(tr("Copied to clipboard."), false, false, 3000);
+        showToast(tr("Copied to clipboard."), false, false);
         break;
     case ShelfItem::Kind::Url:
         clipboard->setText(item.url);
-        showToast(tr("Copied to clipboard."), false, false, 3000);
+        showToast(tr("Copied to clipboard."), false, false);
         break;
     case ShelfItem::Kind::Image: {
         const QImage image(item.imageFile);
         if (image.isNull()) {
-            showToast(tr("The image could not be read."), false, true, 6000);
+            showToast(tr("The image could not be read."), false, true);
             break;
         }
         auto *mimeData = new QMimeData;
         mimeData->setImageData(image);
         mimeData->setUrls({QUrl::fromLocalFile(item.imageFile)});
         clipboard->setMimeData(mimeData);
-        showToast(tr("Image copied to clipboard."), false, false, 3000);
+        showToast(tr("Image copied to clipboard."), false, false);
         break;
     }
     }
@@ -1212,12 +1341,12 @@ void ShelfController::openContainingFolder(int index)
         break;
     case ShelfItem::Kind::Text:
     case ShelfItem::Kind::Url:
-        showToast(tr("This item has no file location."), false, false, 3500);
+        showToast(tr("This item has no file location."), false, false);
         return;
     }
 
     if (directory.isEmpty() || !QDesktopServices::openUrl(QUrl::fromLocalFile(directory))) {
-        showToast(tr("Couldn't open the containing folder."), false, true, 6000);
+        showToast(tr("Couldn't open the containing folder."), false, true);
     }
 }
 
@@ -1244,12 +1373,12 @@ void ShelfController::setAutostartEnabled(bool enabled)
 
     QString error;
     if (!Autostart::setEnabled(enabled, &error)) {
-        showToast(error, false, true, 7000);
+        showToast(error, false, true);
         return;
     }
     m_autostartEnabled = enabled;
     Q_EMIT autostartChanged();
-    showToast(enabled ? tr("Yoink will start when you sign in.") : tr("Autostart turned off."), false, false, 3500);
+    showToast(enabled ? tr("Yoink will start when you sign in.") : tr("Autostart turned off."), false, false);
 }
 
 void ShelfController::quit()

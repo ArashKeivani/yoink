@@ -20,9 +20,23 @@ FocusScope {
     property string itemName: itemIndex >= 0 ? shelf.itemData(itemIndex, "name") : ""
     property string itemDetail: itemIndex >= 0 ? shelf.itemData(itemIndex, "detail") : ""
     property string itemIcon: itemIndex >= 0 ? shelf.itemData(itemIndex, "iconSource") : ""
+    property bool multiMode: shelf.selectedCount > 1 && shelf.selectedRows.indexOf(root.itemIndex) >= 0
 
     function close() {
         shelf.closeItemMenu();
+    }
+
+    function selectionContainsOnly(kinds) {
+        const rows = shelf.selectedRows;
+        if (rows.length === 0) {
+            return false;
+        }
+        for (let i = 0; i < rows.length; ++i) {
+            if (kinds.indexOf(shelf.itemData(rows[i], "kindName")) < 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     Rectangle {
@@ -62,6 +76,7 @@ FocusScope {
             Item {
                 width: menuColumn.width
                 height: 42
+                visible: !root.multiMode
 
                 RowLayout {
                     anchors.fill: parent
@@ -103,6 +118,39 @@ FocusScope {
                 }
             }
 
+            Item {
+                width: menuColumn.width
+                height: 42
+                visible: root.multiMode
+
+                Column {
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 1
+
+                    Text {
+                        width: parent.width
+                        text: qsTr("%n item(s) selected", "", shelf.selectedCount)
+                        color: root.theme.menuText
+                        font.family: root.theme.fontFamily
+                        font.pointSize: root.theme.bodyPointSize
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        width: parent.width
+                        text: qsTr("Group actions")
+                        color: root.theme.textMuted
+                        font.family: root.theme.fontFamily
+                        font.pointSize: root.theme.smallPointSize
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+
             Rectangle {
                 width: menuColumn.width
                 height: 1
@@ -111,7 +159,40 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "text"
+                visible: root.multiMode && root.selectionContainsOnly(["file", "folder", "image", "url"])
+                label: qsTr("Open %n item(s)", "", shelf.selectedCount)
+                iconName: "document-open"
+                onClicked: {
+                    shelf.openSelectedItems();
+                    root.close();
+                }
+            }
+
+            MenuRow {
+                width: menuColumn.width
+                visible: root.multiMode && root.selectionContainsOnly(["file", "folder", "image"])
+                label: qsTr("Show in Folder")
+                iconName: "folder-open"
+                onClicked: {
+                    shelf.showSelectedInFolder();
+                    root.close();
+                }
+            }
+
+            MenuRow {
+                width: menuColumn.width
+                visible: root.multiMode
+                label: qsTr("Copy %n item(s)", "", shelf.selectedCount)
+                iconName: "edit-copy"
+                onClicked: {
+                    shelf.copySelectedItems();
+                    root.close();
+                }
+            }
+
+            MenuRow {
+                width: menuColumn.width
+                visible: !root.multiMode && root.kindName === "text"
                 label: qsTr("Copy Text")
                 iconName: "edit-copy"
                 onClicked: {
@@ -122,7 +203,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "url"
+                visible: !root.multiMode && root.kindName === "url"
                 label: qsTr("Open Link")
                 iconName: "internet-web-browser"
                 onClicked: {
@@ -133,7 +214,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "url"
+                visible: !root.multiMode && root.kindName === "url"
                 label: qsTr("Copy Link")
                 iconName: "edit-copy"
                 onClicked: {
@@ -144,7 +225,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "file" || root.kindName === "folder" || root.kindName === "image"
+                visible: !root.multiMode && (root.kindName === "file" || root.kindName === "folder" || root.kindName === "image")
                 label: root.kindName === "image" ? qsTr("Open Image") : qsTr("Open")
                 iconName: "document-open"
                 onClicked: {
@@ -155,7 +236,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "file" || root.kindName === "folder" || root.kindName === "image"
+                visible: !root.multiMode && (root.kindName === "file" || root.kindName === "folder" || root.kindName === "image")
                 label: root.kindName === "image" ? qsTr("Copy Image") : qsTr("Copy")
                 iconName: "edit-copy"
                 onClicked: {
@@ -166,7 +247,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                visible: root.kindName === "file" || root.kindName === "folder" || root.kindName === "image"
+                visible: !root.multiMode && (root.kindName === "file" || root.kindName === "folder" || root.kindName === "image")
                 label: qsTr("Show in Folder")
                 iconName: "folder-open"
                 onClicked: {
@@ -183,11 +264,15 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                label: qsTr("Remove from Shelf")
+                label: root.multiMode ? qsTr("Remove %n item(s)", "", shelf.selectedCount) : qsTr("Remove from Shelf")
                 iconName: "user-trash"
                 danger: true
                 onClicked: {
-                    shelf.removeItem(root.itemIndex);
+                    if (root.multiMode) {
+                        shelf.removeSelectedItems();
+                    } else {
+                        shelf.removeItem(root.itemIndex);
+                    }
                     root.close();
                 }
             }

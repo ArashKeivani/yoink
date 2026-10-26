@@ -19,7 +19,8 @@ shipping a fixed theme.
 - Pin the shelf open, close it without clearing it, and reopen it from the tray
   or with the command line.
 - Persist the shelf across restarts with atomic writes and corruption recovery.
-- Choose the screen edge, vertical/horizontal position, and monitor.
+- Choose the screen edge, position, and monitor.
+- Configure how long notifications stay visible (Settings → Notification).
 - Optional start-at-login entry, single-instance behavior, and a status notifier
   tray icon.
 - Keyboard-accessible controls, visible focus rings, and support for Plasma's
@@ -98,8 +99,11 @@ When installing desktop file or autostart users, make sure the install prefix's
   range); `Ctrl+A` selects all and `Escape` clears the selection. Dragging a
   selected item drags the whole selection out as one drop; dragging an
   unselected item drags only that item.
-- Click an item to open it. Text items are copied to the clipboard.
-- Right-click an item for open/copy/show-in-folder/remove actions.
+- Click an item to select it; double-click opens it. Double-clicking a text
+  item copies it to the clipboard. `Enter` opens the focused item.
+- Right-click an item for open/copy/show-in-folder/remove actions. With several
+  items selected, the menu acts on the whole selection: Copy and Remove always,
+  plus Open and Show in Folder when every selected item supports them.
 - Use the header buttons to pin the shelf open, open settings, or close it.
 - Use the tray icon to show/hide Yoink or open settings.
 - Press `Escape` to close an overlay or the shelf. Press `Ctrl+,` while the shelf
@@ -108,6 +112,12 @@ When installing desktop file or autostart users, make sure the install prefix's
 Launching Yoink starts with the shelf collapsed (just the edge handle); it only
 opens expanded if it was pinned. `--show`, `--toggle`, and `--settings` open it
 explicitly.
+
+In settings, the position slider follows the pointer live on the left and right
+edges. On the top and bottom edges the card slides sideways while the position
+changes, so the new position applies when you release the slider instead. The
+notification timeout slider (1–8 s) controls how long toasts stay visible;
+error toasts stay at least four seconds.
 
 ### Command line
 
@@ -127,11 +137,15 @@ request to the existing instance over a local socket.
 
 The exact paths are shown in **Settings → Storage**.
 
-- Shelf data: Qt's application data location, typically
-  `~/.local/share/Yoink/Yoink/items.json`
-- Copied image data: `~/.local/share/Yoink/Yoink/images/`
+- Shelf data: `~/.local/share/Yoink/items.json`
+- Copied image data: `~/.local/share/Yoink/images/`
 - Settings: `~/.config/Yoinkrc`
 - Autostart entry: `~/.config/autostart/org.yoink.Yoink.desktop`
+
+Older versions stored the data one level deeper
+(`~/.local/share/Yoink/Yoink/`). On startup, Yoink moves that data up one level
+so nothing is lost; the flat location is used from then on. If the move cannot
+be completed, the old data is left untouched and Yoink warns about it.
 
 Shelf writes use `QSaveFile`, so a failed write does not replace the previous
 good file. Corrupt or unknown-format data is backed up next to the original and

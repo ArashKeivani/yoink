@@ -14,6 +14,10 @@ Storage**.
 - [ ] Configure and build from a clean directory with no warnings.
 - [ ] Launch with no arguments: the shelf starts collapsed on the configured edge.
 - [ ] Launch with `--show`: the shelf opens.
+- [ ] Start with data still sitting in the old nested location
+      `~/.local/share/Yoink/Yoink/`: the first launch moves `items.json` and
+      `images/` up to `~/.local/share/Yoink/` and the shelf shows the same
+      items; a second launch changes nothing further.
 - [ ] Launch with `--autostart`: the shelf starts collapsed and quiet.
 - [ ] Launch a second instance with `--show`: the existing instance opens and
       the second process exits successfully.
@@ -68,12 +72,23 @@ Storage**.
 - [ ] Files and folders show the correct icon and metadata.
 - [ ] Image files and raw images show a rounded preview.
 - [ ] Missing files are dimmed and explain that they are unavailable.
-- [ ] Click a file/folder to open it.
-- [ ] Click a URL to open it in the browser.
-- [ ] Click a text item to copy it.
-- [ ] Right-click an item to open its menu.
+- [ ] Single-click a file/folder/URL: it is selected, nothing is opened.
+- [ ] Double-click a file/folder: it opens.
+- [ ] Double-click a URL: it opens in the browser.
+- [ ] Double-click a text item: it is copied to the clipboard.
+- [ ] A click after dragging an item does not activate it by mistake.
+- [ ] Right-click an item to open its menu; right-clicking an unselected item
+      selects it first.
 - [ ] Copy file, text, link, and image items to the clipboard.
 - [ ] Show a file or folder in its containing folder.
+- [ ] Select several items including mixed kinds, right-click one of them: the
+      menu shows the selection count, Copy N items, and Remove N items.
+- [ ] With only files/folders/URLs selected, the menu also offers Open N item(s);
+      with only files/folders/images, also Show in Folder.
+- [ ] Remove a selection with the menu; all selected items disappear and undo
+      restores them at the earliest original position.
+- [ ] Copy a mixed selection to the clipboard and paste into a file manager:
+      files and URLs arrive; paste into a text editor shows the joined text.
 - [ ] Remove one item; the undo toast appears.
 - [ ] Click Undo; the item returns in its original position.
 - [ ] Clear all; the undo toast appears.
@@ -103,8 +118,15 @@ Storage**.
 - [ ] Open settings with the header button, the tray, and `Ctrl+,`.
 - [ ] Change edge and position while watching the shelf: the surface stays at
       the edge and the card slides smoothly within it, without jumping.
+- [ ] On the left/right edges the position slider moves the card as you drag.
+- [ ] On the top/bottom edges the card keeps still while dragging the position
+      slider and lands on the new position when the slider is released.
 - [ ] The expanded card has the same small margin from the active edge on
       left, right, top, and bottom; the handle is flush on all four sides.
+- [ ] Change the notification timeout and trigger a toast: it disappears after
+      roughly that time; error toasts stay at least four seconds.
+- [ ] Restart after changing the notification timeout: the value persists.
+- [ ] Settings → Storage shows `~/.local/share/Yoink` (no nested `Yoink/Yoink`).
 - [ ] Change monitor; the shelf moves immediately.
 - [ ] Toggle Start at Login; the autostart file is created/removed and the
       setting survives a restart.

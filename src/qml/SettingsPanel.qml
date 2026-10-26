@@ -17,6 +17,11 @@ FocusScope {
 
     readonly property var theme: shelf.theme
 
+    function formatSeconds(ms) {
+        const seconds = ms / 1000;
+        return Number.isInteger(seconds) ? seconds + " s" : seconds.toFixed(1) + " s";
+    }
+
     Rectangle {
         anchors.fill: parent
         radius: 16
@@ -171,7 +176,7 @@ FocusScope {
                 }
 
                 Text {
-                    text: shelf.settings.position + "%"
+                    text: Math.round(positionSlider.value) + "%"
                     color: root.theme.textMuted
                     font.family: root.theme.fontFamily
                     font.pointSize: root.theme.smallPointSize
@@ -180,14 +185,55 @@ FocusScope {
 
             Slider {
                 id: positionSlider
+                property int committed: shelf.settings.position
+
+                onCommittedChanged: {
+                    if (!pressed) {
+                        value = committed;
+                    }
+                }
+                Component.onCompleted: value = committed
+                Connections {
+                    target: shelf
+                    function onLayoutChanged() {
+                        positionSlider.commitTimer.stop();
+                        positionSlider.value = shelf.settings.position;
+                    }
+                }
                 Layout.fillWidth: true
                 implicitHeight: 28
                 from: 0
                 to: 100
                 stepSize: 1
-                value: shelf.settings.position
-                onMoved: shelf.setPosition(Math.round(value))
                 Accessible.name: qsTr("Shelf position")
+                onMoved: {
+                    if (shelf.verticalEdge) {
+                        shelf.setPosition(Math.round(value));
+                    } else {
+                        commitTimer.restart();
+                    }
+                }
+                // On top/bottom the card slides sideways as the position
+                // changes, so applying live moves the target under the pointer.
+                // The change lands when the drag is released instead.
+                onPressedChanged: {
+                    if (!pressed && !shelf.verticalEdge) {
+                        commitTimer.stop();
+                        shelf.setPosition(Math.round(value));
+                    }
+                }
+
+                Timer {
+                    id: commitTimer
+                    interval: 350
+                    onTriggered: {
+                        if (positionSlider.pressed) {
+                            restart();
+                        } else {
+                            shelf.setPosition(Math.round(positionSlider.value));
+                        }
+                    }
+                }
 
                 background: Rectangle {
                     x: positionSlider.leftPadding
@@ -215,6 +261,85 @@ FocusScope {
                     border.width: 1
                     border.color: root.theme.surface
                 }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                spacing: 8
+
+                Text {
+                    text: qsTr("NOTIFICATION")
+                    color: root.theme.textMuted
+                    font.family: root.theme.fontFamily
+                    font.pointSize: root.theme.smallPointSize
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 0.6
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Text {
+                    text: root.formatSeconds(shelf.settings.toastDuration)
+                    color: root.theme.textMuted
+                    font.family: root.theme.fontFamily
+                    font.pointSize: root.theme.smallPointSize
+                }
+            }
+
+            Slider {
+                id: toastSlider
+                property int committed: shelf.settings.toastDuration
+
+                onCommittedChanged: {
+                    if (!pressed) {
+                        value = committed / 1000;
+                    }
+                }
+                Component.onCompleted: value = committed / 1000
+                Layout.fillWidth: true
+                implicitHeight: 28
+                from: 1
+                to: 8
+                stepSize: 0.5
+                Accessible.name: qsTr("Notification timeout")
+                onMoved: shelf.settings.toastDuration = Math.round(value * 1000)
+
+                background: Rectangle {
+                    x: toastSlider.leftPadding
+                    y: toastSlider.topPadding + toastSlider.availableHeight / 2 - height / 2
+                    width: toastSlider.availableWidth
+                    height: 4
+                    radius: 2
+                    color: root.theme.divider
+
+                    Rectangle {
+                        width: toastSlider.visualPosition * parent.width
+                        height: parent.height
+                        radius: 2
+                        color: root.theme.accent
+                    }
+                }
+
+                handle: Rectangle {
+                    x: toastSlider.leftPadding + toastSlider.visualPosition * (toastSlider.availableWidth - width)
+                    y: toastSlider.topPadding + toastSlider.availableHeight / 2 - height / 2
+                    width: 16
+                    height: 16
+                    radius: 8
+                    color: root.theme.accent
+                    border.width: 1
+                    border.color: root.theme.surface
+                }
+            }
+
+            Text {
+                text: qsTr("How long notifications stay on screen. Errors stay at least four seconds.")
+                color: root.theme.textMuted
+                font.family: root.theme.fontFamily
+                font.pointSize: root.theme.smallPointSize
             }
 
             Text {

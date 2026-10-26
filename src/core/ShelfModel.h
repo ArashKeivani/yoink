@@ -66,6 +66,7 @@ public:
 
     ImportResult importMimeData(const QMimeData *mimeData);
     bool removeRow(int row);
+    bool removeItemsAt(QList<int> rows);
     void clear();
     void insertItemsAt(int row, const QList<ShelfItem> &items);
     void refreshAvailability();

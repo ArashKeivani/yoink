@@ -140,11 +140,16 @@ public:
     Q_INVOKABLE void activateItem(int index);
     Q_INVOKABLE void startItemDrag(int index);
     Q_INVOKABLE void toggleItemSelection(int index);
+    Q_INVOKABLE void selectItem(int index);
     Q_INVOKABLE void extendItemSelection(int index);
     Q_INVOKABLE void clearSelection();
     Q_INVOKABLE void selectAllItems();
     Q_INVOKABLE void startItemsDrag(const QList<int> &indices);
     Q_INVOKABLE void removeItem(int index);
+    Q_INVOKABLE void removeSelectedItems();
+    Q_INVOKABLE void copySelectedItems();
+    Q_INVOKABLE void openSelectedItems();
+    Q_INVOKABLE void showSelectedInFolder();
     Q_INVOKABLE void clearShelf();
     Q_INVOKABLE void undoLastRemoval();
     Q_INVOKABLE void copyItem(int index);
@@ -185,11 +190,13 @@ private:
     void scheduleAutoHide();
     void closeOverlays();
     void showStartupMessage();
-    void showToast(const QString &message, bool undoAvailable = false, bool isError = false, int durationMs = 4500);
+    void showToast(const QString &message, bool undoAvailable = false, bool isError = false, int durationMs = 0);
     void persist();
     bool ensureModifiable();
     void invalidateUndo();
     [[nodiscard]] ShelfItem itemAt(int index) const;
+    [[nodiscard]] QList<int> sortedSelectedRows() const;
+    [[nodiscard]] QList<ShelfItem> selectedItems() const;
     [[nodiscard]] QPixmap createDragPixmap(const ShelfItem &item, int count = 1) const;
 
     void onPointerInsideChanged(bool inside);

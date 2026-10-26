@@ -181,6 +181,9 @@ Item {
                 return;
             }
             if (mouse.button === Qt.RightButton) {
+                if (!root.selected) {
+                    shelf.selectItem(root.itemIndex);
+                }
                 shelf.openItemMenu(root.itemIndex);
                 return;
             }
@@ -192,8 +195,30 @@ Item {
                 shelf.extendItemSelection(root.itemIndex);
                 return;
             }
-            shelf.activateItem(root.itemIndex);
+            shelf.selectItem(root.itemIndex);
         }
-        onPressAndHold: shelf.openItemMenu(root.itemIndex)
+        onDoubleClicked: function (mouse) {
+            if (doubleClickIgnored()) {
+                return;
+            }
+            if (mouse.button === Qt.LeftButton) {
+                shelf.activateItem(root.itemIndex);
+            }
+        }
+        onPressAndHold: {
+            if (!root.selected) {
+                shelf.selectItem(root.itemIndex);
+            }
+            shelf.openItemMenu(root.itemIndex);
+        }
+
+        function doubleClickIgnored() {
+            // A drag must not turn its release into an activation.
+            if (dragStarted) {
+                dragStarted = false;
+                return true;
+            }
+            return false;
+        }
     }
 }

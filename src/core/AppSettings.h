@@ -26,6 +26,7 @@ public:
 
     Q_PROPERTY(int edge READ edge WRITE setEdge NOTIFY edgeChanged)
     Q_PROPERTY(int position READ position WRITE setPosition NOTIFY positionChanged)
+    Q_PROPERTY(int toastDuration READ toastDuration WRITE setToastDuration NOTIFY toastDurationChanged)
     Q_PROPERTY(QString screenName READ screenName WRITE setScreenName NOTIFY screenNameChanged)
     Q_PROPERTY(bool pinned READ pinned WRITE setPinned NOTIFY pinnedChanged)
 
@@ -39,6 +40,9 @@ public:
     [[nodiscard]] int position() const;
     void setPosition(int position);
 
+    [[nodiscard]] int toastDuration() const;
+    void setToastDuration(int durationMs);
+
     [[nodiscard]] QString screenName() const;
     void setScreenName(const QString &screenName);
 
@@ -50,6 +54,7 @@ public:
 Q_SIGNALS:
     void edgeChanged();
     void positionChanged();
+    void toastDurationChanged();
     void screenNameChanged();
     void pinnedChanged();
     void saveFailed(const QString &message);
@@ -63,6 +68,7 @@ private:
     QTimer m_syncTimer;
     int m_edge = Right;
     int m_position = 50;
+    int m_toastDuration = 2500;
     QString m_screenName;
     bool m_pinned = false;
 };

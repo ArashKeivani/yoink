@@ -64,6 +64,7 @@ void AppSettings::initialize()
 {
     m_edge = edgeFromString(m_group.readEntry(QStringLiteral("edge"), QStringLiteral("right")));
     m_position = qBound(0, m_group.readEntry(QStringLiteral("position"), 50), 100);
+    m_toastDuration = qBound(1000, m_group.readEntry(QStringLiteral("toastDuration"), 2500), 15000);
     m_screenName = m_group.readEntry(QStringLiteral("screenName"), QString());
     m_pinned = m_group.readEntry(QStringLiteral("pinned"), false);
 
@@ -104,6 +105,23 @@ void AppSettings::setPosition(int position)
     m_group.writeEntry(QStringLiteral("position"), m_position);
     scheduleSync();
     Q_EMIT positionChanged();
+}
+
+int AppSettings::toastDuration() const
+{
+    return m_toastDuration;
+}
+
+void AppSettings::setToastDuration(int durationMs)
+{
+    const int bounded = qBound(1000, durationMs, 15000);
+    if (m_toastDuration == bounded) {
+        return;
+    }
+    m_toastDuration = bounded;
+    m_group.writeEntry(QStringLiteral("toastDuration"), m_toastDuration);
+    scheduleSync();
+    Q_EMIT toastDurationChanged();
 }
 
 QString AppSettings::screenName() const
