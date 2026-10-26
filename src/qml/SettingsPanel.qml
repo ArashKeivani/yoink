@@ -82,7 +82,7 @@ FocusScope {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        contentHeight: content.implicitHeight + 28
+        contentHeight: content.implicitHeight + 24
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
@@ -108,9 +108,9 @@ FocusScope {
         ColumnLayout {
             id: content
             x: 16
-            y: 14
+            y: 12
             width: flickable.width - 32
-            spacing: 12
+            spacing: 8
 
             Rectangle {
                 Layout.fillWidth: true
@@ -159,7 +159,6 @@ FocusScope {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 2
                 spacing: 8
 
                 Text {
@@ -196,12 +195,12 @@ FocusScope {
                 Connections {
                     target: shelf
                     function onLayoutChanged() {
-                        positionSlider.commitTimer.stop();
+                        commitTimer.stop();
                         positionSlider.value = shelf.settings.position;
                     }
                 }
                 Layout.fillWidth: true
-                implicitHeight: 28
+                implicitHeight: 24
                 from: 0
                 to: 100
                 stepSize: 1
@@ -265,7 +264,7 @@ FocusScope {
 
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 6
+                Layout.topMargin: 2
                 spacing: 8
 
                 Text {
@@ -300,7 +299,7 @@ FocusScope {
                 }
                 Component.onCompleted: value = committed / 1000
                 Layout.fillWidth: true
-                implicitHeight: 28
+                implicitHeight: 24
                 from: 1
                 to: 8
                 stepSize: 0.5
@@ -333,13 +332,6 @@ FocusScope {
                     border.width: 1
                     border.color: root.theme.surface
                 }
-            }
-
-            Text {
-                text: qsTr("How long notifications stay on screen. Errors stay at least four seconds.")
-                color: root.theme.textMuted
-                font.family: root.theme.fontFamily
-                font.pointSize: root.theme.smallPointSize
             }
 
             Text {
@@ -389,12 +381,6 @@ FocusScope {
                 onToggled: function (checked) {
                     shelf.setAutostartEnabled(checked);
                 }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                height: 1
-                color: root.theme.divider
             }
 
             Text {

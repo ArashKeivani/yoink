@@ -9,7 +9,6 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -61,9 +60,6 @@ bool isSafeImageFileName(const QString &name)
 ShelfRepository::ShelfRepository(QString dataDirectory)
     : m_dataDirectory(std::move(dataDirectory))
 {
-    if (m_dataDirectory == defaultDataDirectory()) {
-        migrateLegacyDataDirectory();
-    }
 }
 
 ShelfRepository::LoadResult ShelfRepository::load()
@@ -330,81 +326,6 @@ QString ShelfRepository::defaultDataDirectory()
         path = QDir::homePath() + QStringLiteral("/.local/share");
     }
     return QDir(path).filePath(QStringLiteral("Yoink"));
-}
-
-void ShelfRepository::migrateLegacyDataDirectory()
-{
-    const QString flatDirectory = defaultDataDirectory();
-    QDir dataDirRoot(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/Yoink"));
-    const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-
-    QStringList legacyCandidates;
-    legacyCandidates << dataDirRoot.filePath(QStringLiteral("Yoink"));
-    if (!appData.isEmpty()) {
-        legacyCandidates << appData;
-    }
-    legacyCandidates.removeAll(flatDirectory);
-    legacyCandidates.removeDuplicates();
-
-    for (const QString &legacy : legacyCandidates) {
-        if (!QFile::exists(QDir(legacy).filePath(QStringLiteral("items.json")))) {
-            continue;
-        }
-        if (QFile::exists(itemsFilePath())) {
-            break;
-        }
-        if (!QDir().mkpath(m_dataDirectory)) {
-            qWarning() << "Yoink: couldn't create" << m_dataDirectory << "to receive migrated shelf data";
-            return;
-        }
-
-        bool allMoved = true;
-        const QFileInfoList entries = QDir(legacy).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot);
-        for (const QFileInfo &entry : entries) {
-            if (!moveEntryInto(entry, m_dataDirectory)) {
-                allMoved = false;
-                break;
-            }
-        }
-        if (!allMoved) {
-            qWarning() << "Yoink: couldn't move shelf data from" << legacy << "; it was left untouched";
-            return;
-        }
-        if (!QDir().rmdir(legacy)) {
-            QDir(legacy).removeRecursively();
-        }
-    }
-}
-
-// Moves one entry into the destination directory. Directories are merged
-// file-by-file so an existing destination directory keeps working.
-bool ShelfRepository::moveEntryInto(const QFileInfo &entry, const QString &targetDirectory)
-{
-    const QString target = QDir(targetDirectory).filePath(entry.fileName());
-    if (entry.isDir()) {
-        if (!QDir().mkpath(target)) {
-            return false;
-        }
-        const QFileInfoList children = QDir(entry.absoluteFilePath()).entryInfoList(QDir::AllEntries | QDir::Hidden | QDir::NoDotAndDotDot);
-        for (const QFileInfo &child : children) {
-            if (!moveEntryInto(child, target)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    if (QFile::exists(target) && !QFile::remove(target)) {
-        return false;
-    }
-    if (QFile::rename(entry.absoluteFilePath(), target)) {
-        return true;
-    }
-    // rename can fail across mount points; fall back to copying.
-    if (!QFile::copy(entry.absoluteFilePath(), target)) {
-        return false;
-    }
-    return QFile::remove(entry.absoluteFilePath());
 }
 
 QString ShelfRepository::backupDamagedFile(QString *backupPath)

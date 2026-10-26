@@ -142,11 +142,6 @@ The exact paths are shown in **Settings → Storage**.
 - Settings: `~/.config/Yoinkrc`
 - Autostart entry: `~/.config/autostart/org.yoink.Yoink.desktop`
 
-Older versions stored the data one level deeper
-(`~/.local/share/Yoink/Yoink/`). On startup, Yoink moves that data up one level
-so nothing is lost; the flat location is used from then on. If the move cannot
-be completed, the old data is left untouched and Yoink warns about it.
-
 Shelf writes use `QSaveFile`, so a failed write does not replace the previous
 good file. Corrupt or unknown-format data is backed up next to the original and
 reported in the UI. A data file from a newer schema is treated as read-only.

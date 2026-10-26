@@ -14,10 +14,6 @@ Storage**.
 - [ ] Configure and build from a clean directory with no warnings.
 - [ ] Launch with no arguments: the shelf starts collapsed on the configured edge.
 - [ ] Launch with `--show`: the shelf opens.
-- [ ] Start with data still sitting in the old nested location
-      `~/.local/share/Yoink/Yoink/`: the first launch moves `items.json` and
-      `images/` up to `~/.local/share/Yoink/` and the shelf shows the same
-      items; a second launch changes nothing further.
 - [ ] Launch with `--autostart`: the shelf starts collapsed and quiet.
 - [ ] Launch a second instance with `--show`: the existing instance opens and
       the second process exits successfully.
@@ -126,7 +122,7 @@ Storage**.
 - [ ] Change the notification timeout and trigger a toast: it disappears after
       roughly that time; error toasts stay at least four seconds.
 - [ ] Restart after changing the notification timeout: the value persists.
-- [ ] Settings → Storage shows `~/.local/share/Yoink` (no nested `Yoink/Yoink`).
+- [ ] Settings → Storage shows `~/.local/share/Yoink`.
 - [ ] Change monitor; the shelf moves immediately.
 - [ ] Toggle Start at Login; the autostart file is created/removed and the
       setting survives a restart.
