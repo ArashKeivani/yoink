@@ -46,6 +46,7 @@ Rectangle {
         Text {
             id: toastText
             Layout.fillWidth: true
+            Layout.alignment: Qt.AlignVCenter
             text: shelf.toastMessage
             color: shelf.toastIsError ? toast.theme.danger : toast.theme.menuText
             font.family: toast.theme.fontFamily
@@ -57,6 +58,7 @@ Rectangle {
 
         TextButton {
             visible: shelf.toastUndoAvailable
+            Layout.alignment: Qt.AlignVCenter
             text: qsTr("Undo")
             onClicked: shelf.undoLastRemoval()
         }

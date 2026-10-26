@@ -14,6 +14,13 @@ Storage**.
 - [ ] Configure and build from a clean directory with no warnings.
 - [ ] Launch with no arguments: the shelf starts collapsed on the configured edge.
 - [ ] Launch with `--show`: the shelf opens.
+- [ ] `sh setup.sh` installs the binary into `~/.local/bin`, the desktop entry,
+      and icons; the desktop launcher starts Yoink.
+- [ ] Running the installer again over an existing installation succeeds.
+- [ ] `sh setup.sh --build-from-source` clones, builds, and installs.
+- [ ] `sh uninstall.sh` removes the binary, desktop entry, icons, and the
+      autostart entry; `~/.local/share/Yoink` and `~/.config/Yoinkrc` remain.
+- [ ] `sh uninstall.sh --purge` removes those too.
 - [ ] Launch with `--autostart`: the shelf starts collapsed and quiet.
 - [ ] Launch a second instance with `--show`: the existing instance opens and
       the second process exits successfully.

@@ -54,6 +54,37 @@ On Debian/Ubuntu-style systems the development packages are usually named
 `libkf6colorscheme-dev`, `libkf6statusnotifieritem-dev`, and
 `liblayershellqtinterface-dev`.
 
+## Install
+
+Download and install the latest release binary (no build tools needed, no root
+required — everything lives in `~/.local`):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ArashKeivani/yoink/master/setup.sh | sh
+```
+
+Or clone the repository first and run `./setup.sh`. The script installs:
+
+- `~/.local/bin/yoink` and the desktop entry (`Exec` points at that path)
+- the icons under `~/.local/share/icons/hicolor/scalable/apps/`
+
+Options:
+
+- `sh setup.sh --build-from-source` — clone and build instead of downloading a
+  release binary.
+- `YOINK_VERSION=v1.2.0 sh setup.sh` — install a specific tagged release.
+- `YOINK_PREFIX=/opt/yoink sh setup.sh` — choose a custom prefix.
+
+Uninstall:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ArashKeivani/yoink/master/uninstall.sh | sh
+```
+
+This removes the binary, desktop entry, icons, and the autostart entry, and
+keeps your shelf data and settings. Run `sh uninstall.sh --purge` to remove
+those as well.
+
 ## Build
 
 Debug build:
@@ -87,6 +118,10 @@ cmake --install build/release --prefix "$HOME/.local"
 
 When installing desktop file or autostart users, make sure the install prefix's
 `bin` directory is on `PATH` before using the desktop entry.
+
+Maintainers produce the release archive that `setup.sh` downloads by running
+`./package.sh`; it emits `yoink-linux-<arch>.tar.gz` with the release binary,
+desktop file, and icons, ready to attach to a GitHub release.
 
 ## Usage
 
