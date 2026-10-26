@@ -64,7 +64,7 @@ if [ "${1:-}" = "--build-from-source" ]; then
 else
     ASSET="yoink-linux-$ARCH.tar.gz"
     base="https://github.com/$REPO/releases/download"
-    if [ -n "$YOINK_URL" ]; then
+    if [ -n "${YOINK_URL:-}" ]; then
         URL="$YOINK_URL"
     elif [ -n "$VERSION_ARG" ]; then
         URL="$base/$VERSION_ARG/$ASSET"
