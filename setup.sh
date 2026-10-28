@@ -99,5 +99,6 @@ if [ -n "$missing" ]; then
     echo
     echo "WARNING: missing shared libraries:" >&2
     echo "$missing" >&2
-    echo "Install the Qt 6 runtime packages for your distribution (see the README)." >&2
+    echo "Install the Qt 6 runtime packages for your distribution:" >&2
+    echo "https://github.com/ArashKeivani/yoink/blob/master/docs/TECHNICAL.md#requirements" >&2
 fi
