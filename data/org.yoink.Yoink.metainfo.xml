@@ -21,6 +21,13 @@
   </categories>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.1.0" date="2026-10-28">
+      <description>
+        <p>New Yoink logo and refreshed app icon.</p>
+        <p>Correct singular and plural wording in menus and notifications.</p>
+        <p>Documentation improvements, including a new technical guide.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-24">
       <description>
         <p>Initial release.</p>
