@@ -20,9 +20,11 @@
 #include <QQmlError>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QTimer>
 #include <QUrl>
 
 #include <cstdio>
+#include <optional>
 
 int main(int argc, char *argv[])
 {
@@ -49,14 +51,23 @@ int main(int argc, char *argv[])
     const QCommandLineOption toggleOption(QStringLiteral("toggle"), QStringLiteral("Toggle the shelf."));
     const QCommandLineOption quitOption(QStringLiteral("quit"), QStringLiteral("Quit a running Yoink instance."));
     const QCommandLineOption autostartOption(QStringLiteral("autostart"), QStringLiteral("Start quietly, as at login."));
+    const QCommandLineOption screenshotOption(
+        QStringList{QStringLiteral("screenshot")}, QStringLiteral("Render a view to a PNG and exit; for documentation."), QStringLiteral("file"));
+    const QCommandLineOption screenshotViewOption(QStringList{QStringLiteral("screenshot-view")},
+                                                  QStringLiteral("View to render with --screenshot: shelf, selection, menu, settings, toast."),
+                                                  QStringLiteral("view"),
+                                                  QStringLiteral("shelf"));
     parser.addOption(showOption);
     parser.addOption(settingsOption);
     parser.addOption(toggleOption);
     parser.addOption(quitOption);
     parser.addOption(autostartOption);
+    parser.addOption(screenshotOption);
+    parser.addOption(screenshotViewOption);
     parser.process(app);
 
     const bool autostart = parser.isSet(autostartOption);
+    const bool screenshotting = parser.isSet(screenshotOption);
     QString message;
     if (parser.isSet(quitOption)) {
         message = QStringLiteral("quit");
@@ -69,7 +80,9 @@ int main(int argc, char *argv[])
     }
 
     SingleInstance instance(QStringLiteral("org.yoink.Yoink"));
-    if (!instance.tryAcquire()) {
+    // Screenshot runs always make a real instance so they never forward to
+    // (and never disturb) the user's live shelf.
+    if (!screenshotting && !instance.tryAcquire()) {
         if (!message.isEmpty()) {
             if (instance.sendMessage(message)) {
                 return 0;
@@ -111,14 +124,18 @@ int main(int argc, char *argv[])
         view.setFlags(view.flags() | Qt::WindowStaysOnTopHint);
     }
 
-    TrayIcon tray;
-    QObject::connect(&tray, &TrayIcon::toggleRequested, &controller, &ShelfController::toggleFromTray);
-    QObject::connect(&tray, &TrayIcon::settingsRequested, &controller, &ShelfController::openSettings);
-    QObject::connect(&tray, &TrayIcon::quitRequested, &controller, &ShelfController::quit);
-    QObject::connect(&tray, &TrayIcon::autostartToggleRequested, &controller, &ShelfController::setAutostartEnabled);
-    QObject::connect(&controller, &ShelfController::expandedChanged, &tray, [&tray, &controller] { tray.setExpanded(controller.expanded()); });
-    QObject::connect(&controller, &ShelfController::autostartChanged, &tray, [&tray, &controller] { tray.setAutostartEnabled(controller.autostartEnabled()); });
-    tray.setAutostartEnabled(controller.autostartEnabled());
+    std::optional<TrayIcon> tray;
+    if (!screenshotting) {
+        tray.emplace();
+        QObject::connect(&*tray, &TrayIcon::toggleRequested, &controller, &ShelfController::toggleFromTray);
+        QObject::connect(&*tray, &TrayIcon::settingsRequested, &controller, &ShelfController::openSettings);
+        QObject::connect(&*tray, &TrayIcon::quitRequested, &controller, &ShelfController::quit);
+        QObject::connect(&*tray, &TrayIcon::autostartToggleRequested, &controller, &ShelfController::setAutostartEnabled);
+        QObject::connect(&controller, &ShelfController::expandedChanged, &*tray, [&tray, &controller] { tray->setExpanded(controller.expanded()); });
+        QObject::connect(
+            &controller, &ShelfController::autostartChanged, &*tray, [&tray, &controller] { tray->setAutostartEnabled(controller.autostartEnabled()); });
+        tray->setAutostartEnabled(controller.autostartEnabled());
+    }
 
     QObject::connect(&instance, &SingleInstance::messageReceived, &controller, &ShelfController::handleIpcMessage);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, &controller, &ShelfController::shutdown);
@@ -130,6 +147,44 @@ int main(int argc, char *argv[])
         controller.toggleFromTray();
     } else if (parser.isSet(settingsOption)) {
         controller.openSettings();
+    }
+
+    if (screenshotting) {
+        const QString file = parser.value(screenshotOption);
+        const QString view = parser.value(screenshotViewOption);
+        QTimer::singleShot(1150, &app, [&app, &view, &controller, file] {
+            if (view == QLatin1String("selection")) {
+                controller.selectAllItems();
+            } else if (view == QLatin1String("menu")) {
+                controller.selectAllItems();
+                controller.openItemMenu(0);
+            } else if (view == QLatin1String("settings")) {
+                controller.openSettings();
+            } else if (view == QLatin1String("toast")) {
+                controller.removeItem(1);
+            }
+            QTimer::singleShot(350, &app, [&app, file] {
+                QImage grabbed;
+                const QList<QWindow *> windows = app.topLevelWindows();
+                for (QWindow *window : windows) {
+                    if (auto *quick = qobject_cast<QQuickWindow *>(window)) {
+                        grabbed = quick->grabWindow();
+                        break;
+                    }
+                }
+                if (grabbed.isNull()) {
+                    qWarning() << "Yoink: could not capture the window.";
+                    QCoreApplication::exit(2);
+                    return;
+                }
+                if (!grabbed.save(file)) {
+                    qWarning() << "Yoink: could not save" << file;
+                    QCoreApplication::exit(2);
+                    return;
+                }
+                QCoreApplication::exit(0);
+            });
+        });
     }
 
     return app.exec();
