@@ -41,13 +41,17 @@ QString summaryFor(const MimeImport::Plan &plan)
 
     QStringList parts;
     if (files > 0) {
-        parts.append(QCoreApplication::translate("MimeImport", "%n file(s)", nullptr, files));
+        parts.append(files == 1 ? QCoreApplication::translate("MimeImport", "%n file", nullptr, files)
+                                : QCoreApplication::translate("MimeImport", "%n files", nullptr, files));
     }
     if (folders > 0) {
-        parts.append(QCoreApplication::translate("MimeImport", "%n folder(s)", nullptr, folders));
+        parts.append(folders == 1 ? QCoreApplication::translate("MimeImport", "%n folder", nullptr, folders)
+                                  : QCoreApplication::translate("MimeImport", "%n folders", nullptr, folders));
     }
     if (!plan.remoteUrls.isEmpty()) {
-        parts.append(QCoreApplication::translate("MimeImport", "%n link(s)", nullptr, plan.remoteUrls.size()));
+        const int links = int(plan.remoteUrls.size());
+        parts.append(links == 1 ? QCoreApplication::translate("MimeImport", "%n link", nullptr, links)
+                                : QCoreApplication::translate("MimeImport", "%n links", nullptr, links));
     }
     return parts.join(QStringLiteral(" · "));
 }

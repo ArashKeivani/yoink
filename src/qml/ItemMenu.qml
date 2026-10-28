@@ -132,7 +132,7 @@ FocusScope {
 
                     Text {
                         width: parent.width
-                        text: qsTr("%n item(s) selected", "", shelf.selectedCount)
+                        text: qsTr("%n items selected", "", shelf.selectedCount)
                         color: root.theme.menuText
                         font.family: root.theme.fontFamily
                         font.pointSize: root.theme.bodyPointSize
@@ -160,7 +160,7 @@ FocusScope {
             MenuRow {
                 width: menuColumn.width
                 visible: root.multiMode && root.selectionContainsOnly(["file", "folder", "image", "url"])
-                label: qsTr("Open %n item(s)", "", shelf.selectedCount)
+                label: qsTr("Open %n items", "", shelf.selectedCount)
                 iconName: "document-open"
                 onClicked: {
                     shelf.openSelectedItems();
@@ -182,7 +182,7 @@ FocusScope {
             MenuRow {
                 width: menuColumn.width
                 visible: root.multiMode
-                label: qsTr("Copy %n item(s)", "", shelf.selectedCount)
+                label: qsTr("Copy %n items", "", shelf.selectedCount)
                 iconName: "edit-copy"
                 onClicked: {
                     shelf.copySelectedItems();
@@ -264,7 +264,7 @@ FocusScope {
 
             MenuRow {
                 width: menuColumn.width
-                label: root.multiMode ? qsTr("Remove %n item(s)", "", shelf.selectedCount) : qsTr("Remove from Shelf")
+                label: root.multiMode ? qsTr("Remove %n items", "", shelf.selectedCount) : qsTr("Remove from Shelf")
                 iconName: "user-trash"
                 danger: true
                 onClicked: {

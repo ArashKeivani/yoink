@@ -58,6 +58,18 @@ QString screenLabel(QScreen *screen, int index)
     return QCoreApplication::translate("ShelfController", "Screen %1").arg(index + 1);
 }
 
+QString itemsText(int count)
+{
+    return count == 1 ? QCoreApplication::translate("ShelfController", "%n item", nullptr, count)
+                      : QCoreApplication::translate("ShelfController", "%n items", nullptr, count);
+}
+
+QString duplicatesText(int count)
+{
+    return count == 1 ? QCoreApplication::translate("ShelfController", "%n duplicate", nullptr, count)
+                      : QCoreApplication::translate("ShelfController", "%n duplicates", nullptr, count);
+}
+
 QIcon iconForItem(const ShelfItem &item)
 {
     switch (item.kind) {
@@ -441,7 +453,7 @@ QPixmap ShelfController::createDragPixmap(const ShelfItem &item, int count) cons
     painter.setPen(m_theme->textMuted());
     QString detail = QFontMetricsF(detailFont).elidedText(item.secondaryText(), Qt::ElideMiddle, 166);
     if (count > 1) {
-        detail = QFontMetricsF(detailFont).elidedText(tr("%n item(s) selected", nullptr, count), Qt::ElideMiddle, 166);
+        detail = QFontMetricsF(detailFont).elidedText(tr("%n items selected", nullptr, count), Qt::ElideMiddle, 166);
     }
     painter.drawText(QRectF(62, 33, 166, 19), Qt::AlignLeft | Qt::AlignVCenter, detail);
     painter.end();
@@ -505,13 +517,13 @@ void ShelfController::onMimeDropped(const QMimeData *mimeData)
 
     QStringList parts;
     if (result.added > 0) {
-        parts.append(tr("Added %n item(s)", nullptr, result.added));
+        parts.append(tr("Added %1").arg(itemsText(result.added)));
     }
     if (result.duplicates > 0) {
-        parts.append(tr("%n duplicate(s) skipped", nullptr, result.duplicates));
+        parts.append(tr("%1 skipped").arg(duplicatesText(result.duplicates)));
     }
     if (result.rejected > 0) {
-        parts.append(tr("%n item(s) not added", nullptr, result.rejected));
+        parts.append(tr("%1 not added").arg(itemsText(result.rejected)));
     }
     QString message = parts.join(QStringLiteral(" · "));
     if (!result.error.isEmpty()) {
@@ -988,7 +1000,7 @@ void ShelfController::startItemsDrag(const QList<int> &indices)
         return;
     }
     if (skippedUnavailable > 0) {
-        showToast(tr("Skipped %n unavailable item(s)", nullptr, skippedUnavailable), false, false);
+        showToast(tr("%1 skipped (unavailable)").arg(itemsText(skippedUnavailable)), false, false);
     }
 
     m_internalDragActive = true;
@@ -1167,12 +1179,12 @@ void ShelfController::removeSelectedItems()
 
     m_undo.row = rows.first();
     m_undo.items = selected;
-    m_undo.description = tr("%n item(s)", nullptr, selected.size());
+    m_undo.description = itemsText(selected.size());
     m_undo.valid = true;
 
     m_model->removeItemsAt(rows);
     if (!m_lastSaveFailed) {
-        showToast(tr("Removed %n item(s)", nullptr, selected.size()), true, false);
+        showToast(tr("Removed %1").arg(itemsText(selected.size())), true, false);
     }
 }
 
@@ -1225,7 +1237,7 @@ void ShelfController::copySelectedItems()
         mimeData->setText(texts.join(QLatin1Char('\n')));
         clipboard->setMimeData(mimeData);
     }
-    showToast(tr("Copied %n item(s) to clipboard.", nullptr, copied), false, false);
+    showToast(tr("Copied %1 to clipboard.").arg(itemsText(copied)), false, false);
 }
 
 void ShelfController::openSelectedItems()
@@ -1257,12 +1269,12 @@ void ShelfController::clearShelf()
 
     m_undo.row = 0;
     m_undo.items = items;
-    m_undo.description = tr("%n item(s)", nullptr, int(items.size()));
+    m_undo.description = itemsText(int(items.size()));
     m_undo.valid = true;
 
     m_model->clear();
     if (!m_lastSaveFailed) {
-        showToast(tr("Cleared %n item(s)", nullptr, int(items.size())), true, false);
+        showToast(tr("Cleared %1").arg(itemsText(int(items.size()))), true, false);
     }
 }
 
@@ -1276,7 +1288,7 @@ void ShelfController::undoLastRemoval()
     m_undo = {};
     m_model->insertItemsAt(entry.row, entry.items);
     if (!m_lastSaveFailed) {
-        showToast(tr("Restored %n item(s)", nullptr, int(entry.items.size())), false, false);
+        showToast(tr("Restored %1").arg(itemsText(int(entry.items.size()))), false, false);
     }
 }
 
